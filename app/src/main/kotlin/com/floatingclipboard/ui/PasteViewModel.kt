@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.floatingclipboard.actions.Action
 import com.floatingclipboard.actions.ActionResult
 import com.floatingclipboard.actions.ActionRunner
+import com.floatingclipboard.actions.BreakdownItem
 import com.floatingclipboard.actions.PromptLoader
 import com.floatingclipboard.data.LlmCache
 import com.floatingclipboard.data.SettingsRepository
@@ -23,7 +24,11 @@ import kotlinx.coroutines.launch
 
 sealed interface ActionState {
     data object Idle : ActionState
-    data class Loading(val action: Action, val partialText: String? = null) : ActionState
+    data class Loading(
+        val action: Action,
+        val partialText: String? = null,
+        val partialBreakdown: List<BreakdownItem>? = null,
+    ) : ActionState
     data class Success(val action: Action, val result: ActionResult) : ActionState
     data class Error(val action: Action, val message: String) : ActionState
 }

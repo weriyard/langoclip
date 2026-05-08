@@ -57,8 +57,11 @@ class ActionRunner(
         emit(ActionState.Loading(action))
         val client = createLlmClient(settings)
         val schema = if (action == Action.EXPLAIN_SENTENCE) BREAKDOWN_SCHEMA else null
-        val showPartial = action == Action.TRANSLATE
+        val showPartialText = action == Action.TRANSLATE
+        val streamBreakdown = action == Action.EXPLAIN_SENTENCE
         val builder = StringBuilder()
+        val breakdownParser = if (streamBreakdown) StreamingBreakdownParser(json) else null
+        var lastBreakdownEmitted = 0
         var deltaCount = 0
         val startedAt = System.currentTimeMillis()
 
@@ -69,8 +72,15 @@ class ActionRunner(
                     Log.d(TAG, "TTFT  ${System.currentTimeMillis() - startedAt}ms (first delta arrived)")
                 }
                 builder.append(delta)
-                if (showPartial) {
+                if (showPartialText) {
                     emit(ActionState.Loading(action, partialText = builder.toString()))
+                } else if (breakdownParser != null) {
+                    val items = breakdownParser.extractItems(builder.toString())
+                    if (items.size > lastBreakdownEmitted) {
+                        lastBreakdownEmitted = items.size
+                        Log.d(TAG, "PART  ${System.currentTimeMillis() - startedAt}ms — ${items.size} items parsed so far")
+                        emit(ActionState.Loading(action, partialBreakdown = items))
+                    }
                 }
             }
             Log.d(TAG, "DONE  ${System.currentTimeMillis() - startedAt}ms total, $deltaCount deltas, ${builder.length} chars")
@@ -161,6 +171,58 @@ private fun BreakdownItemDto.toDomain() = BreakdownItem(
     partOfSpeech = PartOfSpeech.parse(partOfSpeech),
     explanation = explanation,
 )
+
+/**
+ * Parsuje akumulator stringa zawierający częściowy JSON `{"items":[{...},{...},...]}` i wyciąga
+ * tylko KOMPLETNE sub-obiekty z tablicy items. Pozwala renderować pojedyncze BreakdownItem'y
+ * w UI gdy tylko model skończy je generować, zamiast czekać na całe zdanie.
+ *
+ * Algorytm: licznik klamerek z poprawną obsługą stringów (cudzysłowy + escape'y) — `{` i `}`
+ * wewnątrz stringów nie liczymy. Każdy zamknięty obiekt na głębokości 0 → próba deserializacji.
+ * Niepowodzenie (np. Gemini wstawi pole którego nie znamy) → ignorujemy ten item, zostaje w
+ * akumulatorze do końcowego pełnego parse'u.
+ */
+private class StreamingBreakdownParser(private val json: Json) {
+    private val itemsMarker = "\"items\":["
+
+    fun extractItems(accumulated: String): List<BreakdownItem> {
+        val markerIndex = accumulated.indexOf(itemsMarker)
+        if (markerIndex < 0) return emptyList()
+        val content = accumulated.substring(markerIndex + itemsMarker.length)
+
+        val items = mutableListOf<BreakdownItem>()
+        var depth = 0
+        var start = -1
+        var inString = false
+        var escapeNext = false
+
+        for (i in content.indices) {
+            val c = content[i]
+            when {
+                escapeNext -> escapeNext = false
+                c == '\\' && inString -> escapeNext = true
+                c == '"' -> inString = !inString
+                inString -> Unit
+                c == '{' -> {
+                    if (depth == 0) start = i
+                    depth++
+                }
+                c == '}' -> {
+                    depth--
+                    if (depth == 0 && start >= 0) {
+                        val objJson = content.substring(start, i + 1)
+                        runCatching {
+                            val dto = json.decodeFromString<BreakdownItemDto>(objJson)
+                            items.add(dto.toDomain())
+                        }
+                        start = -1
+                    }
+                }
+            }
+        }
+        return items
+    }
+}
 
 @Serializable
 private data class ExamplesDto(

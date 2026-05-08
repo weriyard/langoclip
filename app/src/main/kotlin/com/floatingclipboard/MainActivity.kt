@@ -312,7 +312,7 @@ private fun ActionResultPanel(
                 CircularProgressIndicator(modifier = Modifier.size(20.dp))
                 Text("Przetwarzam…")
             }
-            // Tekst streamowany w trakcie generowania (tylko TRANSLATE).
+            // Tekst streamowany w trakcie generowania (TRANSLATE).
             state.partialText?.takeIf { it.isNotBlank() }?.let { partial ->
                 SelectionContainer {
                     Text(
@@ -322,6 +322,10 @@ private fun ActionResultPanel(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            // Częściowy breakdown — karty pojawiają się po jednej w trakcie streamowania (EXPLAIN_SENTENCE).
+            state.partialBreakdown?.takeIf { it.isNotEmpty() }?.let { items ->
+                BreakdownResult(items = items, onShowExamples = onShowExamples)
             }
         }
 
