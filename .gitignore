@@ -1,0 +1,43 @@
+# Sekrety — nigdy nie commituj
+local.properties
+**/.env
+*.keystore
+*.jks
+
+# Gradle
+.gradle/
+build/
+**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+.kotlin/
+captures/
+.externalNativeBuild
+.cxx/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# APK / artifacts
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+# Logs / temp
+*.log
+local-tmp/
+
+# Generated
+gen/
+out/
+release/

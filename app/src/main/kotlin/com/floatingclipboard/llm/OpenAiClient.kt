@@ -1,0 +1,210 @@
+package com.floatingclipboard.llm
+
+import io.ktor.client.call.body
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.preparePost
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
+import io.ktor.http.isSuccess
+import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import java.io.IOException
+
+/**
+ * Klient OpenAI Chat Completions API. Streaming via SSE z `data: {...}` i terminatorem
+ * `data: [DONE]`. Structured output przez `response_format: { type: "json_schema", strict: true }` —
+ * schema musi być w formacie OpenAI strict (lowercase typy, additionalProperties:false). Robimy
+ * konwersję z naszego Gemini-formattu w [toOpenAiStrictSchema].
+ */
+class OpenAiClient(
+    private val apiKey: String,
+    private val model: String,
+) : LlmClient {
+
+    override suspend fun complete(
+        systemPrompt: String,
+        userPrompt: String,
+        jsonSchema: JsonElement?,
+    ): Result<String> {
+        if (apiKey.isBlank()) return Result.failure(LlmError.MissingApiKey)
+        return runCatching {
+            val response = llmHttpClient.post(BASE_URL) {
+                header(HttpHeaders.Authorization, "Bearer $apiKey")
+                contentType(ContentType.Application.Json)
+                setBody(buildRequest(systemPrompt, userPrompt, jsonSchema, stream = false))
+            }
+            when (val code = response.status.value) {
+                401, 403 -> throw LlmError.Unauthorized
+                429 -> throw LlmError.RateLimited
+                else -> if (!response.status.isSuccess()) {
+                    throw LlmError.Server(code, response.bodyAsText().take(500))
+                }
+            }
+            val body = response.body<OpenAiResponse>()
+            body.choices.firstOrNull()
+                ?.message?.content
+                ?.takeIf { it.isNotBlank() }
+                ?: throw LlmError.EmptyResponse
+        }.recoverCatching { e ->
+            throw mapError(e)
+        }
+    }
+
+    override fun stream(
+        systemPrompt: String,
+        userPrompt: String,
+        jsonSchema: JsonElement?,
+    ): Flow<String> = flow {
+        if (apiKey.isBlank()) throw LlmError.MissingApiKey
+        val parser = Json { ignoreUnknownKeys = true }
+
+        llmHttpClient.preparePost(BASE_URL) {
+            header(HttpHeaders.Authorization, "Bearer $apiKey")
+            contentType(ContentType.Application.Json)
+            setBody(buildRequest(systemPrompt, userPrompt, jsonSchema, stream = true))
+        }.execute { response ->
+            if (!response.status.isSuccess()) {
+                val body = runCatching { response.bodyAsText() }.getOrDefault("")
+                throw when (response.status.value) {
+                    401, 403 -> LlmError.Unauthorized
+                    429 -> LlmError.RateLimited
+                    else -> LlmError.Server(response.status.value, body.take(500))
+                }
+            }
+            val channel = response.bodyAsChannel()
+            while (!channel.isClosedForRead) {
+                val line = channel.readUTF8Line() ?: break
+                if (!line.startsWith("data: ")) continue
+                val payload = line.removePrefix("data: ").trim()
+                if (payload.isEmpty() || payload == "[DONE]") continue
+                val chunk: OpenAiStreamChunk? = try {
+                    parser.decodeFromString<OpenAiStreamChunk>(payload)
+                } catch (e: SerializationException) {
+                    null
+                }
+                chunk?.choices?.firstOrNull()
+                    ?.delta?.content
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { emit(it) }
+            }
+        }
+    }
+        .catch { e ->
+            throw when (e) {
+                is LlmError -> e
+                is CancellationException -> e
+                is IOException -> LlmError.Network(e)
+                else -> LlmError.Unknown(e)
+            }
+        }
+        .flowOn(Dispatchers.IO)
+
+    private fun buildRequest(
+        systemPrompt: String,
+        userPrompt: String,
+        jsonSchema: JsonElement?,
+        stream: Boolean,
+    ) = OpenAiRequest(
+        model = model,
+        messages = listOfNotNull(
+            systemPrompt.takeIf { it.isNotBlank() }
+                ?.let { OpenAiMessage(role = "system", content = it) },
+            OpenAiMessage(role = "user", content = userPrompt),
+        ),
+        stream = stream,
+        responseFormat = jsonSchema?.let {
+            OpenAiResponseFormat(
+                type = "json_schema",
+                jsonSchema = OpenAiJsonSchemaSpec(
+                    name = "structured_output",
+                    schema = toOpenAiStrictSchema(it),
+                    strict = true,
+                ),
+            )
+        },
+    )
+
+    private fun mapError(e: Throwable): Throwable = when (e) {
+        is LlmError -> e
+        is IOException -> LlmError.Network(e)
+        else -> LlmError.Unknown(e)
+    }
+
+    companion object {
+        private const val BASE_URL = "https://api.openai.com/v1/chat/completions"
+    }
+}
+
+@Serializable
+private data class OpenAiRequest(
+    val model: String,
+    val messages: List<OpenAiMessage>,
+    val stream: Boolean = false,
+    @SerialName("response_format")
+    val responseFormat: OpenAiResponseFormat? = null,
+)
+
+@Serializable
+private data class OpenAiMessage(
+    val role: String,
+    val content: String,
+)
+
+@Serializable
+private data class OpenAiResponseFormat(
+    val type: String,
+    @SerialName("json_schema")
+    val jsonSchema: OpenAiJsonSchemaSpec,
+)
+
+@Serializable
+private data class OpenAiJsonSchemaSpec(
+    val name: String,
+    val schema: JsonElement,
+    val strict: Boolean = true,
+)
+
+@Serializable
+private data class OpenAiResponse(
+    val choices: List<OpenAiChoice> = emptyList(),
+)
+
+@Serializable
+private data class OpenAiChoice(
+    val message: OpenAiMessage? = null,
+    @SerialName("finish_reason")
+    val finishReason: String? = null,
+)
+
+@Serializable
+private data class OpenAiStreamChunk(
+    val choices: List<OpenAiStreamChoice> = emptyList(),
+)
+
+@Serializable
+private data class OpenAiStreamChoice(
+    val delta: OpenAiStreamDelta? = null,
+    @SerialName("finish_reason")
+    val finishReason: String? = null,
+)
+
+@Serializable
+private data class OpenAiStreamDelta(
+    val role: String? = null,
+    val content: String? = null,
+)
