@@ -1,6 +1,7 @@
 package com.floatingclipboard.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -21,9 +23,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -46,6 +51,8 @@ fun PhraseExamplesScreen(
     ),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val pullState = rememberPullToRefreshState()
+    val isRefreshing = state is ExamplesState.Loading
 
     LaunchedEffect(phrase) { viewModel.load(phrase) }
 
@@ -53,66 +60,90 @@ fun PhraseExamplesScreen(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Przykłady użycia") },
+                title = {
+                    val variantSuffix = (state as? ExamplesState.Success)?.variant?.takeIf { it > 0 }
+                    Text(if (variantSuffix != null) "Przykłady użycia · zestaw ${variantSuffix + 1}" else "Przykłady użycia")
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
                     }
                 },
+                actions = {
+                    IconButton(
+                        onClick = { viewModel.regenerate() },
+                        enabled = !isRefreshing,
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Wygeneruj nowy zestaw")
+                    }
+                },
             )
         },
     ) { padding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.regenerate() },
+            state = pullState,
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .fillMaxSize(),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = phrase,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                if (translation.isNotBlank()) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = translation,
-                        fontStyle = FontStyle.Italic,
-                        fontWeight = FontWeight.Thin,
+                        text = phrase,
+                        fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.SansSerif,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary,
                     )
+                    if (translation.isNotBlank()) {
+                        Text(
+                            text = translation,
+                            fontStyle = FontStyle.Italic,
+                            fontWeight = FontWeight.Thin,
+                            fontFamily = FontFamily.SansSerif,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-            }
-            HorizontalDivider()
-
-            when (val s = state) {
-                is ExamplesState.Loading -> Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    Text("Generuję przykłady…", fontFamily = FontFamily.SansSerif)
-                }
-
-                is ExamplesState.Error -> Text(
-                    text = s.message,
-                    color = MaterialTheme.colorScheme.error,
-                    fontFamily = FontFamily.SansSerif,
+                HorizontalDivider()
+                Text(
+                    text = "Pociągnij w dół albo kliknij ↻ żeby wygenerować inne przykłady.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                is ExamplesState.Success -> SelectionContainer {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                when (val s = state) {
+                    is ExamplesState.Loading -> Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        s.data.examples.forEachIndexed { index, example ->
-                            ExampleItem(index = index + 1, example = example)
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        Text("Generuję przykłady…", fontFamily = FontFamily.SansSerif)
+                    }
+
+                    is ExamplesState.Error -> Text(
+                        text = s.message,
+                        color = MaterialTheme.colorScheme.error,
+                        fontFamily = FontFamily.SansSerif,
+                    )
+
+                    is ExamplesState.Success -> SelectionContainer {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                        ) {
+                            s.data.examples.forEachIndexed { index, example ->
+                                ExampleItem(index = index + 1, example = example)
+                            }
                         }
                     }
                 }
