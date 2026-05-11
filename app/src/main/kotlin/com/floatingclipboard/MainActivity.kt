@@ -13,73 +13,44 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.floatingclipboard.data.SettingsRepository
+import com.floatingclipboard.data.Tab as DataTab
+import com.floatingclipboard.ui.ExamplesTabContent
+import com.floatingclipboard.ui.ExplainTabContent
+import com.floatingclipboard.ui.LogsScreen
+import com.floatingclipboard.ui.PasteTabContent
+import com.floatingclipboard.ui.SettingsScreen
+import com.floatingclipboard.ui.TabBar
+import com.floatingclipboard.ui.TabsViewModel
+import com.floatingclipboard.ui.theme.AppTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import com.floatingclipboard.actions.Action
-import com.floatingclipboard.actions.ActionResult
-import com.floatingclipboard.actions.BreakdownItem
-import com.floatingclipboard.ui.ActionState
-import com.floatingclipboard.ui.LogsScreen
-import com.floatingclipboard.ui.PasteViewModel
-import com.floatingclipboard.ui.PhraseExamplesScreen
-import com.floatingclipboard.ui.SettingsScreen
-import com.floatingclipboard.ui.colorForPartOfSpeech
-import com.floatingclipboard.ui.label
-import com.floatingclipboard.ui.theme.AppTheme
 
-private sealed interface Screen {
-    data object Paste : Screen
-    data object Settings : Screen
-    data object Logs : Screen
-    data class Examples(val phrase: String, val translation: String) : Screen
+private sealed interface Overlay {
+    data object None : Overlay
+    data object Settings : Overlay
+    data object Logs : Overlay
 }
 
 class MainActivity : ComponentActivity() {
@@ -92,7 +63,7 @@ class MainActivity : ComponentActivity() {
 
     private val notificationLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* ignorujemy wynik — bez notyfikacji service też wystartuje, tylko user nic nie zobaczy w shade */ }
+    ) { /* ignored — bez notyfikacji service też wystartuje */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,7 +73,7 @@ class MainActivity : ComponentActivity() {
         maybeAutoStartBubble()
         setContent {
             AppTheme {
-                AppNavigation(
+                AppRoot(
                     readClipboard = ::readClipboard,
                     writeClipboard = ::writeClipboard,
                     onEnableBubble = ::ensureBubble,
@@ -150,11 +121,6 @@ class MainActivity : ComponentActivity() {
         stopService(Intent(this, BubbleService::class.java))
     }
 
-    /**
-     * Auto-start bąbla przy otwarciu aplikacji jeśli setting włączony i mamy overlay permission.
-     * Brak permission → po prostu nic nie robimy (NIE spamujemy permission dialogiem przy każdym
-     * uruchomieniu — user może go włączyć manualnie z Settings).
-     */
     private fun maybeAutoStartBubble() {
         if (!Settings.canDrawOverlays(this)) return
         lifecycleScope.launch {
@@ -164,307 +130,117 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AppNavigation(
+private fun AppRoot(
     readClipboard: () -> String,
     writeClipboard: (String) -> Unit,
     onEnableBubble: () -> Unit,
     onDisableBubble: () -> Unit,
+    viewModel: TabsViewModel = viewModel(factory = TabsViewModel.Factory),
 ) {
-    var screen by remember { mutableStateOf<Screen>(Screen.Paste) }
-    when (val current = screen) {
-        Screen.Paste -> PasteScreen(
-            readClipboard = readClipboard,
-            writeClipboard = writeClipboard,
-            onOpenSettings = { screen = Screen.Settings },
-            onShowExamples = { phrase, translation -> screen = Screen.Examples(phrase, translation) },
-        )
-        Screen.Settings -> {
-            BackHandler { screen = Screen.Paste }
+    var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
+
+    when (overlay) {
+        Overlay.Settings -> {
+            BackHandler { overlay = Overlay.None }
             SettingsScreen(
-                onBack = { screen = Screen.Paste },
+                onBack = { overlay = Overlay.None },
                 onEnableBubble = onEnableBubble,
                 onDisableBubble = onDisableBubble,
-                onOpenLogs = { screen = Screen.Logs },
+                onOpenLogs = { overlay = Overlay.Logs },
             )
         }
-        Screen.Logs -> {
-            BackHandler { screen = Screen.Settings }
-            LogsScreen(onBack = { screen = Screen.Settings })
+        Overlay.Logs -> {
+            BackHandler { overlay = Overlay.Settings }
+            LogsScreen(onBack = { overlay = Overlay.Settings })
         }
-        is Screen.Examples -> {
-            BackHandler { screen = Screen.Paste }
-            PhraseExamplesScreen(
-                phrase = current.phrase,
-                translation = current.translation,
-                onBack = { screen = Screen.Paste },
-            )
-        }
+        Overlay.None -> TabbedShell(
+            viewModel = viewModel,
+            readClipboard = readClipboard,
+            writeClipboard = writeClipboard,
+            onOpenSettings = { overlay = Overlay.Settings },
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PasteScreen(
+private fun TabbedShell(
+    viewModel: TabsViewModel,
     readClipboard: () -> String,
     writeClipboard: (String) -> Unit,
     onOpenSettings: () -> Unit,
-    onShowExamples: (String, String) -> Unit,
-    viewModel: PasteViewModel = viewModel(factory = PasteViewModel.Factory),
 ) {
-    val text by viewModel.text.collectAsStateWithLifecycle()
-    val actionState by viewModel.state.collectAsStateWithLifecycle()
+    val tabs by viewModel.tabsList.collectAsStateWithLifecycle()
+    val selectedId by viewModel.selectedId.collectAsStateWithLifecycle()
+    val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val providerLabel by viewModel.providerLabel.collectAsStateWithLifecycle()
-
-    // Auto-fill schowkiem TYLKO gdy pole jest puste — nie stomp usera ani istniejącego stanu
-    // (powrót z ekranu Examples wraca tu z niepustym text/actionState i nie chcemy ich kasować).
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && viewModel.text.value.isBlank()) {
-                viewModel.setText(readClipboard())
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Floating Clipboard")
-                        if (providerLabel.isNotBlank()) {
-                            Text(
-                                text = providerLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text("Floating Clipboard")
+                            if (providerLabel.isNotBlank()) {
+                                Text(
+                                    text = providerLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Ustawienia")
-                    }
-                },
-            )
+                    },
+                    actions = {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Ustawienia")
+                        }
+                    },
+                )
+                TabBar(
+                    tabs = tabs,
+                    selectedId = selectedId,
+                    onSelect = viewModel::select,
+                    onClose = viewModel::close,
+                )
+            }
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(padding),
         ) {
-            Text("Treść ze schowka", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(
-                value = text,
-                onValueChange = { viewModel.setText(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 160.dp),
-                label = { Text("Wklejone automatycznie") },
-                trailingIcon = {
-                    if (text.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.clearAll() }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Wyczyść tekst i wynik",
-                            )
-                        }
-                    }
-                },
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val canRun = text.isNotBlank() && actionState !is ActionState.Loading
-                Button(
-                    onClick = { viewModel.runAction(Action.TRANSLATE) },
-                    enabled = canRun,
-                ) { Text(Action.TRANSLATE.displayName) }
-                Button(
-                    onClick = { viewModel.runAction(Action.EXPLAIN_SENTENCE) },
-                    enabled = canRun,
-                ) { Text(Action.EXPLAIN_SENTENCE.displayName) }
-                if (actionState !is ActionState.Idle) {
-                    IconButton(
-                        onClick = { viewModel.clear() },
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Wyczyść wynik",
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            ActionResultPanel(
-                state = actionState,
-                onCopy = { writeClipboard(it) },
-                onRetry = { (actionState as? ActionState.Error)?.let { viewModel.runAction(it.action) } },
-                onShowExamples = onShowExamples,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ActionResultPanel(
-    state: ActionState,
-    onCopy: (String) -> Unit,
-    onRetry: () -> Unit,
-    onShowExamples: (String, String) -> Unit,
-) {
-    when (state) {
-        ActionState.Idle -> Unit
-
-        is ActionState.Loading -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                Text("Przetwarzam…")
-            }
-            // Tekst streamowany w trakcie generowania (TRANSLATE).
-            state.partialText?.takeIf { it.isNotBlank() }?.let { partial ->
-                SelectionContainer {
-                    Text(
-                        text = partial,
-                        fontFamily = FontFamily.SansSerif,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            // Częściowy breakdown — karty pojawiają się po jednej w trakcie streamowania (EXPLAIN_SENTENCE).
-            state.partialBreakdown?.takeIf { it.isNotEmpty() }?.let { items ->
-                BreakdownResult(items = items, onShowExamples = onShowExamples)
-            }
-        }
-
-        is ActionState.Success -> when (val result = state.result) {
-            is ActionResult.Text -> TextResultCard(
-                action = state.action,
-                text = result.text,
-                onCopy = onCopy,
-            )
-            is ActionResult.Breakdown -> BreakdownResult(
-                items = result.items,
-                onShowExamples = onShowExamples,
-            )
-        }
-
-        is ActionState.Error -> Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-            ),
-        ) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    state.message,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
+            when (val t = selectedTab) {
+                is DataTab.Paste -> PasteTabContent(
+                    tab = t,
+                    readClipboard = readClipboard,
+                    writeClipboard = writeClipboard,
+                    onTextChange = viewModel::setPasteText,
+                    onTranslate = viewModel::translateInPaste,
+                    onExplain = viewModel::explainAsNewTab,
+                    onClearAll = {
+                        viewModel.clearPaste()
+                    },
+                    onClearResult = viewModel::clearPasteResult,
                 )
-                TextButton(onClick = onRetry) { Text("Spróbuj ponownie") }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TextResultCard(
-    action: Action,
-    text: String,
-    onCopy: (String) -> Unit,
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(action.displayName, style = MaterialTheme.typography.labelLarge)
-            SelectionContainer { Text(text) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { onCopy(text) }) { Text("Kopiuj wynik") }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BreakdownResult(
-    items: List<BreakdownItem>,
-    onShowExamples: (String, String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        items.forEach { item -> BreakdownItemRow(item, onShowExamples) }
-    }
-}
-
-@Composable
-private fun BreakdownItemRow(
-    item: BreakdownItem,
-    onShowExamples: (String, String) -> Unit,
-) {
-    val color = colorForPartOfSpeech(item.partOfSpeech)
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        // Wyraz + (część mowy) inline + ikonka "otwórz przykłady" po prawej.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SelectionContainer(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = item.original,
-                        fontWeight = FontWeight.Bold,
-                        color = color,
-                        fontFamily = FontFamily.SansSerif,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = "  (${item.partOfSpeech.label})",
-                        color = color,
-                        fontFamily = FontFamily.SansSerif,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-            IconButton(
-                onClick = { onShowExamples(item.original, item.translation) },
-                modifier = Modifier.size(40.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                    contentDescription = "Pokaż przykłady użycia",
-                    tint = color,
-                    modifier = Modifier.size(20.dp),
+                is DataTab.Explain -> ExplainTabContent(
+                    tab = t,
+                    onShowExamples = viewModel::showExamplesAsNewTab,
+                    onRetry = {
+                        // Retry: ponów explain dla tego samego sourceText'u jako nowa zakładka.
+                        // Zamiast nadpisywać current state — wygodniej dla usera (zachowuje błąd).
+                        // Można też w przyszłości dodać re-fetch w miejscu.
+                    },
                 )
+                is DataTab.Examples -> ExamplesTabContent(
+                    tab = t,
+                    onRegenerate = { viewModel.regenerateExamples(t.id) },
+                )
+                null -> Unit
             }
-        }
-        if (item.translation.isNotBlank()) {
-            Text(
-                text = item.translation,
-                fontStyle = FontStyle.Italic,
-                fontWeight = FontWeight.Thin,
-                fontFamily = FontFamily.SansSerif,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
-        if (item.explanation.isNotBlank()) {
-            Text(
-                text = item.explanation,
-                fontFamily = FontFamily.SansSerif,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
         }
     }
 }

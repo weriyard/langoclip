@@ -18,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,146 +26,120 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.floatingclipboard.actions.Example
+import com.floatingclipboard.data.Tab
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhraseExamplesScreen(
-    phrase: String,
-    translation: String,
-    onBack: () -> Unit,
-    viewModel: PhraseExamplesViewModel = viewModel(
-        key = "examples-$phrase",
-        factory = PhraseExamplesViewModel.Factory,
-    ),
+fun ExamplesTabContent(
+    tab: Tab.Examples,
+    onRegenerate: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
     val pullState = rememberPullToRefreshState()
-    val isRefreshing = state is ExamplesState.Loading
+    val isRefreshing = tab.state is ExamplesState.Loading
 
-    LaunchedEffect(phrase) { viewModel.load(phrase) }
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    val variantSuffix = (state as? ExamplesState.Success)?.variant?.takeIf { it > 0 }
-                    Text(if (variantSuffix != null) "Przykłady użycia · zestaw ${variantSuffix + 1}" else "Przykłady użycia")
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRegenerate,
+        state = pullState,
+        modifier = modifier.fillMaxSize(),
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = tab.phrase,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.SansSerif,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        if (tab.translation.isNotBlank()) {
+                            Text(
+                                text = tab.translation,
+                                fontStyle = FontStyle.Italic,
+                                fontWeight = FontWeight.Thin,
+                                fontFamily = FontFamily.SansSerif,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.regenerate() },
-                        enabled = !isRefreshing,
-                    ) {
+                    IconButton(onClick = onRegenerate, enabled = !isRefreshing) {
                         Icon(Icons.Default.Refresh, contentDescription = "Wygeneruj nowy zestaw")
                     }
-                },
-            )
-        },
-    ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { viewModel.regenerate() },
-            state = pullState,
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize(),
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                }
+                if (tab.variant > 0) {
                     Text(
-                        text = phrase,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif,
-                        style = MaterialTheme.typography.headlineMedium,
+                        text = "zestaw ${tab.variant + 1}",
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                    if (translation.isNotBlank()) {
+                }
+            }
+            HorizontalDivider()
+            Text(
+                text = "Pociągnij w dół albo kliknij ↻ żeby wygenerować inne przykłady.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            when (val s = tab.state) {
+                is ExamplesState.Loading -> Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(28.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
                         Text(
-                            text = translation,
-                            fontStyle = FontStyle.Italic,
-                            fontWeight = FontWeight.Thin,
+                            text = if (s.partial.isEmpty()) "Generuję przykłady…"
+                            else "Generuję przykłady… (${s.partial.size}/5)",
                             fontFamily = FontFamily.SansSerif,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    s.partial.forEachIndexed { index, example ->
+                        ExampleItem(index = index + 1, example = example)
+                    }
                 }
-                HorizontalDivider()
-                Text(
-                    text = "Pociągnij w dół albo kliknij ↻ żeby wygenerować inne przykłady.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+
+                is ExamplesState.Error -> Text(
+                    text = s.message,
+                    color = MaterialTheme.colorScheme.error,
+                    fontFamily = FontFamily.SansSerif,
                 )
 
-                when (val s = state) {
-                    is ExamplesState.Loading -> Column(
+                is ExamplesState.Success -> SelectionContainer {
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(28.dp),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                            Text(
-                                text = if (s.partial.isEmpty()) "Generuję przykłady…"
-                                else "Generuję przykłady… (${s.partial.size}/5)",
-                                fontFamily = FontFamily.SansSerif,
-                            )
-                        }
-                        s.partial.forEachIndexed { index, example ->
+                        s.data.examples.forEachIndexed { index, example ->
                             ExampleItem(index = index + 1, example = example)
-                        }
-                    }
-
-                    is ExamplesState.Error -> Text(
-                        text = s.message,
-                        color = MaterialTheme.colorScheme.error,
-                        fontFamily = FontFamily.SansSerif,
-                    )
-
-                    is ExamplesState.Success -> SelectionContainer {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(28.dp),
-                        ) {
-                            s.data.examples.forEachIndexed { index, example ->
-                                ExampleItem(index = index + 1, example = example)
-                            }
                         }
                     }
                 }
@@ -175,45 +148,31 @@ fun PhraseExamplesScreen(
     }
 }
 
-/**
- * Buduje AnnotatedString z podświetloną frazą. Próba 1: case-sensitive match `span`. Próba 2:
- * case-insensitive (Sonnet czasem zmienia kapitalizację w zdaniu). Wszystkie wystąpienia są
- * podświetlone — fraza może pojawić się więcej niż raz w jednym zdaniu.
- */
 private fun highlightedEnglish(
     english: String,
     span: String,
     highlightColor: androidx.compose.ui.graphics.Color,
 ): AnnotatedString {
     if (span.isBlank() || english.isBlank()) return AnnotatedString(english)
-    val style = SpanStyle(
-        color = highlightColor,
-        fontWeight = FontWeight.ExtraBold,
-    )
+    val style = SpanStyle(color = highlightColor, fontWeight = FontWeight.ExtraBold)
 
-    // Find all match positions (try case-sensitive first, fallback to case-insensitive).
     val positions = mutableListOf<IntRange>()
-    var search = english
-    var offset = 0
+    var from = 0
     while (true) {
-        val idx = search.indexOf(span)
+        val idx = english.indexOf(span, startIndex = from)
         if (idx < 0) break
-        positions.add((offset + idx) until (offset + idx + span.length))
-        val next = idx + span.length
-        if (next >= search.length) break
-        search = search.substring(next)
-        offset += next
+        positions.add(idx until (idx + span.length))
+        from = idx + span.length
     }
     if (positions.isEmpty()) {
-        // Fallback: case-insensitive.
         val lower = english.lowercase()
         val needle = span.lowercase()
-        var from = 0
+        var s = 0
         while (true) {
-            val idx = lower.indexOf(needle, startIndex = from)
+            val idx = lower.indexOf(needle, startIndex = s)
             if (idx < 0) break
             positions.add(idx until (idx + needle.length))
-            from = idx + needle.length
+            s = idx + needle.length
         }
     }
     if (positions.isEmpty()) return AnnotatedString(english)
