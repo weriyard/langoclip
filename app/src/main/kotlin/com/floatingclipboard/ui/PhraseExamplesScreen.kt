@@ -1,18 +1,25 @@
 package com.floatingclipboard.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -124,7 +131,7 @@ fun PhraseExamplesScreen(
                 when (val s = state) {
                     is ExamplesState.Loading -> Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(28.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -137,7 +144,6 @@ fun PhraseExamplesScreen(
                                 fontFamily = FontFamily.SansSerif,
                             )
                         }
-                        // Karty pojawiają się jedna po drugiej w trakcie streamowania.
                         s.partial.forEachIndexed { index, example ->
                             ExampleItem(index = index + 1, example = example)
                         }
@@ -152,7 +158,7 @@ fun PhraseExamplesScreen(
                     is ExamplesState.Success -> SelectionContainer {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(28.dp),
                         ) {
                             s.data.examples.forEachIndexed { index, example ->
                                 ExampleItem(index = index + 1, example = example)
@@ -167,36 +173,68 @@ fun PhraseExamplesScreen(
 
 @Composable
 private fun ExampleItem(index: Int, example: Example) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = "$index.",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontFamily = FontFamily.SansSerif,
+    val primary = MaterialTheme.colorScheme.primary
+    Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .background(primary.copy(alpha = 0.7f))
         )
-        Text(
-            text = example.english,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.SansSerif,
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        if (example.translation.isNotBlank()) {
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = example.translation,
-                fontStyle = FontStyle.Italic,
-                fontWeight = FontWeight.Thin,
+                text = "Przykład $index",
+                style = MaterialTheme.typography.labelMedium,
+                color = primary,
                 fontFamily = FontFamily.SansSerif,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
             )
-        }
-        if (example.usageNote.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
             Text(
-                text = example.usageNote,
+                text = example.english,
+                fontWeight = FontWeight.SemiBold,
                 fontFamily = FontFamily.SansSerif,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
+            if (example.translation.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = example.translation,
+                    fontStyle = FontStyle.Italic,
+                    fontWeight = FontWeight.Thin,
+                    fontFamily = FontFamily.SansSerif,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+            if (example.usageNote.isNotBlank()) {
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.Top) {
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Column {
+                        Text(
+                            text = "Użycie",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.SansSerif,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = example.usageNote,
+                            fontFamily = FontFamily.SansSerif,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
     }
 }
