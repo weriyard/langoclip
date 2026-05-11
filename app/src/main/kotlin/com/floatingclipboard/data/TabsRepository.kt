@@ -151,6 +151,15 @@ class TabsRepository private constructor() {
         }
     }
 
+    /** Zamyka wszystkie zakładki poza Schowkiem. Anuluje wszystkie streamingowe joby. */
+    fun closeAllExceptPaste() {
+        jobs.keys
+            .filter { it != Tab.PASTE_ID }
+            .forEach { jobs.remove(it)?.cancel() }
+        _tabs.value = _tabs.value.filter { it.id == Tab.PASTE_ID }
+        _selectedId.value = Tab.PASTE_ID
+    }
+
     fun putJob(id: TabId, job: Job) {
         jobs[id]?.cancel()
         jobs[id] = job
