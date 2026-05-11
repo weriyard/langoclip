@@ -19,14 +19,15 @@ internal val EXAMPLES_SCHEMA: JsonElement = buildJsonObject {
                 put("type", "OBJECT")
                 putJsonObject("properties") {
                     putJsonObject("english") { put("type", "STRING") }
+                    putJsonObject("highlightedSpan") { put("type", "STRING") }
                     putJsonObject("translation") { put("type", "STRING") }
                     putJsonObject("usageNote") { put("type", "STRING") }
                 }
                 putJsonArray("required") {
-                    add("english"); add("translation"); add("usageNote")
+                    add("english"); add("highlightedSpan"); add("translation"); add("usageNote")
                 }
                 putJsonArray("propertyOrdering") {
-                    add("english"); add("translation"); add("usageNote")
+                    add("english"); add("highlightedSpan"); add("translation"); add("usageNote")
                 }
             }
         }

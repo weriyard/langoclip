@@ -319,8 +319,8 @@ class ActionRunner(
     }
 
     companion object {
-        // v4: Anthropic switched to native structured outputs (output_config.format).
-        private const val CACHE_VERSION = "v4"
+        // v5: examples schema dorzucił highlightedSpan field.
+        private const val CACHE_VERSION = "v5"
         private const val TAG = "LLM"
     }
 }
@@ -353,6 +353,7 @@ private data class ExamplesDto(
 @Serializable
 private data class ExampleDto(
     val english: String = "",
+    val highlightedSpan: String = "",
     val translation: String = "",
     val usageNote: String = "",
 )
@@ -361,6 +362,7 @@ private fun ExampleDto.toDomain() = Example(
     english = english,
     translation = translation,
     usageNote = usageNote,
+    highlightedSpan = highlightedSpan,
 )
 
 /**
