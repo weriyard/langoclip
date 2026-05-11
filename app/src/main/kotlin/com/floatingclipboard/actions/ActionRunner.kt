@@ -186,7 +186,8 @@ class ActionRunner(
     }
 
     companion object {
-        private const val CACHE_VERSION = "v1"
+        // v2: prompts switched to English + standalone function-word skipping rule.
+        private const val CACHE_VERSION = "v2"
         private const val TAG = "LLM"
     }
 }
