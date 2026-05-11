@@ -25,14 +25,13 @@ import kotlinx.serialization.json.JsonElement
 import java.io.IOException
 
 /**
- * Klient Anthropic Messages API. Streaming SSE z eventami `message_start`, `content_block_delta`,
- * `message_stop` itp. Tekstowe delty mają `delta.type == "text_delta"`.
+ * Klient Anthropic Messages API z natywnym **structured outputs** (GA od 2025-11).
  *
- * Structured output: porzucamy tool use (Sonnet 4.6 przy długich schemach zwraca arrays jako
- * stringified JSON ze zepsutymi escape'ami — niemożliwe do zdeserializowania). Zamiast tego:
- * dorzucamy schemę do system promptu jako tekst i prosimy model o plain JSON response w content.
- * Trade-off: brak hard validation, ale Claude w plain text mode konsystentnie respektuje opisaną
- * strukturę i nie ma layeru "tool input encoded as escaped string".
+ * Schema idzie w `output_config.format` (type=json_schema) — model jest constraintowany na
+ * poziomie tokenizacji, gwarancja poprawnego JSON-a zgodnego ze schematem. Response wraca jako
+ * stringified JSON w `content[0].text`.
+ *
+ * Bez tool use, bez prefill, bez schema-in-system-prompt — clean integration.
  */
 class AnthropicClient(
     private val apiKey: String,
@@ -60,12 +59,10 @@ class AnthropicClient(
                 }
             }
             val body = response.body<AnthropicResponse>()
-            val text = body.content.firstOrNull { it.type == "text" }
+            body.content.firstOrNull { it.type == "text" }
                 ?.text
                 ?.takeIf { it.isNotBlank() }
                 ?: throw LlmError.EmptyResponse
-            // Prefilled "{" nie wraca w response, doklejamy z przodu dla structured output.
-            if (jsonSchema != null) "{$text" else text
         }.recoverCatching { e ->
             throw mapError(e)
         }
@@ -78,8 +75,6 @@ class AnthropicClient(
     ): Flow<String> = flow {
         if (apiKey.isBlank()) throw LlmError.MissingApiKey
         val parser = Json { ignoreUnknownKeys = true }
-        // Prefilled assistant message z `{` nie wraca w response — doklejamy go z przodu.
-        var prefillEmitted = jsonSchema == null
 
         llmHttpClient.preparePost(BASE_URL) {
             header(HEADER_API_KEY, apiKey)
@@ -106,15 +101,9 @@ class AnthropicClient(
                 } catch (e: SerializationException) {
                     null
                 }
-                // Bez tool use bierzemy tylko text_delta — JSON odpowiedzi siedzi w treści.
+                // Structured outputs streamują też przez text_delta — content[0].text rośnie tokenowo.
                 if (event?.type == "content_block_delta") {
-                    event.delta?.text?.takeIf { it.isNotEmpty() }?.let { text ->
-                        if (!prefillEmitted) {
-                            emit("{")
-                            prefillEmitted = true
-                        }
-                        emit(text)
-                    }
+                    event.delta?.text?.takeIf { it.isNotEmpty() }?.let { emit(it) }
                 }
             }
         }
@@ -127,44 +116,24 @@ class AnthropicClient(
         userPrompt: String,
         jsonSchema: JsonElement?,
         stream: Boolean,
-    ): AnthropicRequest {
-        // Gdy mamy schemę, doklejamy ją do system promptu jako tekstową instrukcję — nie używamy
-        // tool use (patrz docstring klasy). Wymuszamy żeby PIERWSZY znak odpowiedzi był `{` —
-        // to znana technika: model rzadziej dorzuca prefacing text typu "Here's the JSON:".
-        val effectiveSystem = if (jsonSchema != null) {
-            buildString {
-                if (systemPrompt.isNotBlank()) {
-                    append(systemPrompt)
-                    append("\n\n")
-                }
-                append("Output MUST be valid JSON matching this schema exactly. ")
-                append("Reply with the JSON object only — no markdown fences, no commentary, ")
-                append("no leading or trailing text. Start your response with `{` and end with `}`.\n\n")
-                append("Schema:\n```json\n")
-                append(jsonSchema.toString())
-                append("\n```")
-            }
-        } else systemPrompt.takeIf { it.isNotBlank() } ?: ""
-
-        // Prefill JSON na "{" sprawia że model jest zmuszony kontynuować jako JSON od pierwszego
-        // tokena. To Anthropic-specific trick: assistant message z partial content na końcu.
-        val messages = if (jsonSchema != null) {
-            listOf(
-                AnthropicMessage(role = "user", content = userPrompt),
-                AnthropicMessage(role = "assistant", content = "{"),
+    ) = AnthropicRequest(
+        model = model,
+        system = systemPrompt.takeIf { it.isNotBlank() },
+        messages = listOf(AnthropicMessage(role = "user", content = userPrompt)),
+        maxTokens = MAX_TOKENS,
+        stream = stream,
+        // GA structured outputs — schema constraint na poziomie tokenizacji. Reuse OpenAI strict
+        // converter, bo wymagania są identyczne: lowercase typy, additionalProperties: false,
+        // bez propertyOrdering / minItems / maxItems.
+        outputConfig = jsonSchema?.let {
+            AnthropicOutputConfig(
+                format = AnthropicOutputFormat(
+                    type = "json_schema",
+                    schema = toOpenAiStrictSchema(it),
+                )
             )
-        } else {
-            listOf(AnthropicMessage(role = "user", content = userPrompt))
-        }
-
-        return AnthropicRequest(
-            model = model,
-            system = effectiveSystem.takeIf { it.isNotBlank() },
-            messages = messages,
-            maxTokens = MAX_TOKENS,
-            stream = stream,
-        )
-    }
+        },
+    )
 
     private fun mapError(e: Throwable): Throwable = when (e) {
         is LlmError -> e
@@ -190,6 +159,19 @@ private data class AnthropicRequest(
     @SerialName("max_tokens")
     val maxTokens: Int,
     val stream: Boolean = false,
+    @SerialName("output_config")
+    val outputConfig: AnthropicOutputConfig? = null,
+)
+
+@Serializable
+private data class AnthropicOutputConfig(
+    val format: AnthropicOutputFormat,
+)
+
+@Serializable
+private data class AnthropicOutputFormat(
+    val type: String,
+    val schema: JsonElement,
 )
 
 @Serializable
