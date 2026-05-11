@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,6 +43,7 @@ import com.floatingclipboard.ui.LogsScreen
 import com.floatingclipboard.ui.PasteTabContent
 import com.floatingclipboard.ui.SettingsScreen
 import com.floatingclipboard.ui.TabBar
+import com.floatingclipboard.ui.TabsListSheet
 import com.floatingclipboard.ui.TabsViewModel
 import com.floatingclipboard.ui.theme.AppTheme
 import kotlinx.coroutines.flow.first
@@ -176,6 +178,7 @@ private fun TabbedShell(
     val selectedId by viewModel.selectedId.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val providerLabel by viewModel.providerLabel.collectAsStateWithLifecycle()
+    var showTabsList by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -195,6 +198,12 @@ private fun TabbedShell(
                         }
                     },
                     actions = {
+                        IconButton(onClick = { showTabsList = true }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.List,
+                                contentDescription = "Lista zakładek (${tabs.size})",
+                            )
+                        }
                         IconButton(onClick = onOpenSettings) {
                             Icon(Icons.Default.Settings, contentDescription = "Ustawienia")
                         }
@@ -242,5 +251,16 @@ private fun TabbedShell(
                 null -> Unit
             }
         }
+    }
+
+    if (showTabsList) {
+        TabsListSheet(
+            tabs = tabs,
+            selectedId = selectedId,
+            onSelect = viewModel::select,
+            onClose = viewModel::close,
+            onCloseAll = viewModel::closeAllExceptPaste,
+            onDismiss = { showTabsList = false },
+        )
     }
 }

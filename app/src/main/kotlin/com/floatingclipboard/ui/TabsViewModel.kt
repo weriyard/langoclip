@@ -45,6 +45,7 @@ class TabsViewModel(
 
     fun select(id: TabId) = tabs.select(id)
     fun close(id: TabId) = tabs.close(id)
+    fun closeAllExceptPaste() = tabs.closeAllExceptPaste()
 
     // === Paste (Schowek) operations ===
 
