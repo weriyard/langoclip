@@ -29,6 +29,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.floatingclipboard.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -57,7 +59,7 @@ fun ExplainTabContent(
     ) {
         // Snippet oryginalnego tekstu na samej górze — przypomina o kontekście.
         Text(
-            text = "Tekst źródłowy",
+            text = stringResource(R.string.explain_source_text),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -89,7 +91,7 @@ private fun ResultPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                Text("Przetwarzam…")
+                Text(stringResource(R.string.loading_processing))
             }
             state.partialBreakdown?.takeIf { it.isNotEmpty() }?.let { items ->
                 BreakdownList(items, onShowExamples)
@@ -107,7 +109,7 @@ private fun ResultPanel(
         ) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(state.message, color = MaterialTheme.colorScheme.onErrorContainer)
-                TextButton(onClick = onRetry) { Text("Spróbuj ponownie") }
+                TextButton(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
             }
         }
     }
@@ -154,7 +156,7 @@ private fun BreakdownItemRow(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                    contentDescription = "Pokaż przykłady użycia",
+                    contentDescription = stringResource(R.string.examples_show_for_phrase),
                     tint = color,
                     modifier = Modifier.size(20.dp),
                 )

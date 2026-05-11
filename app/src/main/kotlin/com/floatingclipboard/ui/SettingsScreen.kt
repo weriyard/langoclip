@@ -42,12 +42,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.floatingclipboard.R
+import com.floatingclipboard.data.AppLocale
 import com.floatingclipboard.data.Provider
 
 private val SUGGESTED_LANGUAGES = listOf("polski", "English", "Deutsch", "Français", "Español", "Italiano", "ukraiński")
@@ -78,6 +80,7 @@ fun SettingsScreen(
     var providerMenuOpen by remember { mutableStateOf(false) }
     var modelMenuOpen by remember { mutableStateOf(false) }
     var langMenuOpen by remember { mutableStateOf(false) }
+    var appLangMenuOpen by remember { mutableStateOf(false) }
 
     val activeKey = when (provider) {
         Provider.GEMINI -> geminiKey
@@ -117,10 +120,10 @@ fun SettingsScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Ustawienia") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Wstecz")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -134,7 +137,7 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Provider LLM", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_provider_header), style = MaterialTheme.typography.titleMedium)
             ExposedDropdownMenuBox(
                 expanded = providerMenuOpen,
                 onExpandedChange = { providerMenuOpen = it },
@@ -146,7 +149,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(),
-                    label = { Text("Aktywny provider") },
+                    label = { Text(stringResource(R.string.settings_provider_active)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerMenuOpen) },
                 )
                 ExposedDropdownMenu(
@@ -165,7 +168,10 @@ fun SettingsScreen(
                 }
             }
 
-            Text("API key (${provider.displayName})", style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.settings_api_key_header, provider.displayName),
+                style = MaterialTheme.typography.titleMedium,
+            )
             val usingDefault = when (provider) {
                 Provider.GEMINI -> saved.isUsingDefaultGeminiKey
                 Provider.OPENAI -> saved.isUsingDefaultOpenAiKey
@@ -173,14 +179,14 @@ fun SettingsScreen(
             }
             if (usingDefault && activeKey.isNotBlank()) {
                 Text(
-                    "Używasz domyślnego klucza z konfiguracji buildu. Możesz go zastąpić własnym.",
+                    stringResource(R.string.settings_api_key_using_default),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (usingDefault && activeKey.isBlank()) {
                 Text(
-                    "Brak klucza dla ${provider.displayName} — wklej swój żeby używać tego providera.",
+                    stringResource(R.string.settings_api_key_missing, provider.displayName),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -189,14 +195,14 @@ fun SettingsScreen(
                 value = activeKey,
                 onValueChange = onActiveKeyChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Klucz API") },
+                label = { Text(stringResource(R.string.settings_api_key_label)) },
                 singleLine = true,
                 visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { keyVisible = !keyVisible }) {
                         Icon(
                             if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (keyVisible) "Ukryj" else "Pokaż",
+                            contentDescription = stringResource(R.string.show_hide_password),
                         )
                     }
                 },
@@ -209,10 +215,13 @@ fun SettingsScreen(
                 },
             ) {
                 Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                Text("Skąd wziąć klucz?")
+                Text(stringResource(R.string.settings_where_to_get_key))
             }
 
-            Text("Model (${provider.displayName})", style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.settings_model_header, provider.displayName),
+                style = MaterialTheme.typography.titleMedium,
+            )
             ExposedDropdownMenuBox(
                 expanded = modelMenuOpen,
                 onExpandedChange = { modelMenuOpen = it },
@@ -224,7 +233,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .menuAnchor(),
                     singleLine = true,
-                    label = { Text("Model") },
+                    label = { Text(stringResource(R.string.settings_model_label)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelMenuOpen) },
                 )
                 ExposedDropdownMenu(
@@ -243,7 +252,7 @@ fun SettingsScreen(
                 }
             }
 
-            Text("Język docelowy (dla tłumaczenia)", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_target_language_header), style = MaterialTheme.typography.titleMedium)
             ExposedDropdownMenuBox(
                 expanded = langMenuOpen,
                 onExpandedChange = { langMenuOpen = it },
@@ -255,7 +264,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .menuAnchor(),
                     singleLine = true,
-                    label = { Text("Język") },
+                    label = { Text(stringResource(R.string.settings_target_language_label)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = langMenuOpen) },
                 )
                 ExposedDropdownMenu(
@@ -289,37 +298,76 @@ fun SettingsScreen(
                 },
                 enabled = hasChanges,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Zapisz")
-            }
+            ) { Text(stringResource(R.string.settings_save)) }
             if (provider == Provider.GEMINI && !saved.isUsingDefaultGeminiKey) {
                 OutlinedButton(
                     onClick = { viewModel.resetGeminiApiKey() },
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Przywróć domyślny klucz Gemini")
-                }
+                ) { Text(stringResource(R.string.settings_reset_gemini)) }
             }
             if (provider == Provider.OPENAI && !saved.isUsingDefaultOpenAiKey) {
                 OutlinedButton(
                     onClick = { viewModel.resetOpenAiApiKey() },
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Przywróć domyślny klucz OpenAI")
-                }
+                ) { Text(stringResource(R.string.settings_reset_openai)) }
             }
             if (provider == Provider.ANTHROPIC && !saved.isUsingDefaultAnthropicKey) {
                 OutlinedButton(
                     onClick = { viewModel.resetAnthropicApiKey() },
                     modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.settings_reset_anthropic)) }
+            }
+
+            // === App language ===
+            Text(stringResource(R.string.settings_language_header), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.settings_language_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val appLocaleLabel = when (saved.appLocale) {
+                AppLocale.SYSTEM -> stringResource(R.string.settings_language_system)
+                AppLocale.POLISH -> stringResource(R.string.settings_language_polish)
+                AppLocale.ENGLISH -> stringResource(R.string.settings_language_english)
+            }
+            ExposedDropdownMenuBox(
+                expanded = appLangMenuOpen,
+                onExpandedChange = { appLangMenuOpen = it },
+            ) {
+                OutlinedTextField(
+                    value = appLocaleLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                    label = { Text(stringResource(R.string.settings_language_header)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = appLangMenuOpen) },
+                )
+                ExposedDropdownMenu(
+                    expanded = appLangMenuOpen,
+                    onDismissRequest = { appLangMenuOpen = false },
                 ) {
-                    Text("Przywróć domyślny klucz Anthropic")
+                    AppLocale.entries.forEach { locale ->
+                        val label = when (locale) {
+                            AppLocale.SYSTEM -> stringResource(R.string.settings_language_system)
+                            AppLocale.POLISH -> stringResource(R.string.settings_language_polish)
+                            AppLocale.ENGLISH -> stringResource(R.string.settings_language_english)
+                        }
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                viewModel.setAppLocale(locale)
+                                appLangMenuOpen = false
+                            },
+                        )
+                    }
                 }
             }
 
-            Text("Pływająca ikona", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_bubble_header), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Bąbel zawsze na wierzchu — kliknięcie otwiera tę aplikację z aktualnym schowkiem. Wymaga zgody „Display over other apps”.",
+                stringResource(R.string.settings_bubble_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -327,17 +375,21 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Button(onClick = onEnableBubble, modifier = Modifier.weight(1f)) { Text("Włącz") }
-                OutlinedButton(onClick = onDisableBubble, modifier = Modifier.weight(1f)) { Text("Wyłącz") }
+                Button(onClick = onEnableBubble, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_bubble_enable))
+                }
+                OutlinedButton(onClick = onDisableBubble, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_bubble_disable))
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Auto-start przy uruchomieniu aplikacji", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.settings_autostart_title), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Bąbel włącza się sam gdy otwierasz aplikację (wymaga zgody overlay).",
+                        stringResource(R.string.settings_autostart_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -348,43 +400,36 @@ fun SettingsScreen(
                 )
             }
 
-            Text("Diagnostyka", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_diagnostics_header), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Logi wewnątrz aplikacji — wywołania LLM, czasy odpowiedzi, błędy parsowania.",
+                stringResource(R.string.settings_diagnostics_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedButton(
                 onClick = onOpenLogs,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Pokaż logi")
-            }
+            ) { Text(stringResource(R.string.settings_show_logs)) }
 
-            Text("Skróty", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_shortcuts_header), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Jeśli nie możesz znaleźć aplikacji na ekranie, kliknij poniżej — pojawi się systemowy dialog do dodania skrótu.",
+                stringResource(R.string.settings_shortcuts_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            val shortcutUnsupportedMsg = stringResource(R.string.shortcut_unsupported)
             OutlinedButton(
-                onClick = { pinShortcutToHome(context) },
+                onClick = { pinShortcutToHome(context, shortcutUnsupportedMsg) },
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Przypnij ikonę na ekran główny")
-            }
+            ) { Text(stringResource(R.string.settings_pin_to_home)) }
         }
     }
 }
 
-private fun pinShortcutToHome(context: Context) {
+private fun pinShortcutToHome(context: Context, unsupportedMessage: String) {
     val sm = context.getSystemService(ShortcutManager::class.java)
     if (sm == null || !sm.isRequestPinShortcutSupported) {
-        Toast.makeText(
-            context,
-            "Twój launcher nie wspiera automatycznego przypinania — przeciągnij ikonę z app drawera ręcznie",
-            Toast.LENGTH_LONG,
-        ).show()
+        Toast.makeText(context, unsupportedMessage, Toast.LENGTH_LONG).show()
         return
     }
     val info = ShortcutInfo.Builder(context, "fc_main")

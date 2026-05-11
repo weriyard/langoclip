@@ -15,6 +15,17 @@ import kotlinx.coroutines.flow.combine
 
 private val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
+enum class AppLocale(val tag: String) {
+    SYSTEM(""),
+    POLISH("pl"),
+    ENGLISH("en");
+
+    companion object {
+        fun parse(value: String?): AppLocale =
+            entries.firstOrNull { it.name == value?.uppercase() } ?: SYSTEM
+    }
+}
+
 data class Settings(
     val provider: Provider,
     val geminiApiKey: String,
@@ -28,6 +39,7 @@ data class Settings(
     val anthropicModel: String,
     val targetLanguage: String,
     val autoStartBubble: Boolean,
+    val appLocale: AppLocale,
 ) {
     val activeApiKey: String
         get() = when (provider) {
@@ -92,6 +104,7 @@ class SettingsRepository(context: Context) {
             anthropicModel = prefs[PREF_ANTHROPIC_MODEL] ?: Provider.ANTHROPIC.defaultModel,
             targetLanguage = prefs[PREF_TARGET_LANG] ?: DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = prefs[PREF_AUTO_START_BUBBLE] ?: true,
+            appLocale = AppLocale.parse(prefs[PREF_APP_LOCALE]),
         )
     }
 
@@ -134,6 +147,10 @@ class SettingsRepository(context: Context) {
         appContext.settingsDataStore.edit { it[PREF_AUTO_START_BUBBLE] = enabled }
     }
 
+    suspend fun setAppLocale(locale: AppLocale) {
+        appContext.settingsDataStore.edit { it[PREF_APP_LOCALE] = locale.name }
+    }
+
     companion object {
         const val DEFAULT_TARGET_LANGUAGE = "polski"
 
@@ -147,5 +164,6 @@ class SettingsRepository(context: Context) {
         private val PREF_ANTHROPIC_MODEL = stringPreferencesKey("anthropic_model")
         private val PREF_TARGET_LANG = stringPreferencesKey("target_language")
         private val PREF_AUTO_START_BUBBLE = booleanPreferencesKey("auto_start_bubble")
+        private val PREF_APP_LOCALE = stringPreferencesKey("app_locale")
     }
 }

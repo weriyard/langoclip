@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -47,6 +48,7 @@ import com.floatingclipboard.ui.TabBar
 import com.floatingclipboard.ui.TabsListSheet
 import com.floatingclipboard.ui.TabsViewModel
 import com.floatingclipboard.ui.theme.AppTheme
+import com.floatingclipboard.R
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -226,7 +228,7 @@ private fun TabbedShell(
                 TopAppBar(
                     title = {
                         Column {
-                            Text("Floating Clipboard")
+                            Text(stringResource(R.string.app_name))
                             if (providerLabel.isNotBlank()) {
                                 Text(
                                     text = providerLabel,
@@ -240,11 +242,14 @@ private fun TabbedShell(
                         IconButton(onClick = { showTabsList = true }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.List,
-                                contentDescription = "Lista zakładek (${tabs.size})",
+                                contentDescription = stringResource(R.string.tabs_list_desc, tabs.size),
                             )
                         }
                         IconButton(onClick = onOpenSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = "Ustawienia")
+                            Icon(
+                                Icons.Default.Settings,
+                                contentDescription = stringResource(R.string.action_settings),
+                            )
                         }
                     },
                 )

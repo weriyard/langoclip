@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.floatingclipboard.data.AppLocale
+import com.floatingclipboard.data.LocaleManager
 import com.floatingclipboard.data.Provider
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
@@ -32,6 +34,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
             anthropicModel = Provider.ANTHROPIC.defaultModel,
             targetLanguage = SettingsRepository.DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = true,
+            appLocale = AppLocale.SYSTEM,
         ),
     )
 
@@ -78,6 +81,13 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
 
     fun setAutoStartBubble(enabled: Boolean) {
         viewModelScope.launch { repo.setAutoStartBubble(enabled) }
+    }
+
+    fun setAppLocale(locale: AppLocale) {
+        viewModelScope.launch {
+            repo.setAppLocale(locale)
+            LocaleManager.apply(locale)
+        }
     }
 
     companion object {

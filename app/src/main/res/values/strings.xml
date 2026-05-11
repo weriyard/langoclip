@@ -1,5 +1,107 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Floating Clipboard</string>
-    <string name="bubble_desc">Pływająca ikona schowka</string>
+    <string name="bubble_desc">Floating clipboard icon</string>
+
+    <!-- Top app bar / common -->
+    <string name="action_settings">Settings</string>
+    <string name="action_back">Back</string>
+    <string name="action_close">Close</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_share">Share</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_retry">Try again</string>
+    <string name="action_copy_result">Copy result</string>
+
+    <!-- Paste tab -->
+    <string name="paste_title">Clipboard content</string>
+    <string name="paste_field_label">Pasted automatically</string>
+    <string name="paste_clear_text_and_result">Clear text and result</string>
+    <string name="paste_clear_result">Clear result</string>
+    <string name="action_translate">Translate</string>
+    <string name="action_explain">Explain construction</string>
+    <string name="loading_processing">Processing…</string>
+
+    <!-- Tabs -->
+    <string name="tab_paste">Clipboard</string>
+    <string name="tab_subtitle_paste">Clipboard</string>
+    <string name="tab_subtitle_explain">Explanation</string>
+    <string name="tab_subtitle_examples">Examples</string>
+    <string name="tab_subtitle_examples_variant">Examples · set %1$d</string>
+    <string name="tabs_title_count">Tabs (%1$d)</string>
+    <string name="tabs_close_all">Close all</string>
+    <string name="tabs_close_one">Close tab</string>
+    <string name="tabs_list_desc">Tabs list (%1$d)</string>
+
+    <!-- Examples screen -->
+    <string name="examples_title">Usage examples</string>
+    <string name="examples_title_variant">Usage examples · set %1$d</string>
+    <string name="examples_generate_hint">Pull down or tap ↻ to generate different examples.</string>
+    <string name="examples_loading">Generating examples…</string>
+    <string name="examples_loading_progress">Generating examples… (%1$d/5)</string>
+    <string name="examples_label_one">Example %1$d</string>
+    <string name="examples_usage">Usage</string>
+    <string name="examples_regenerate">Generate new set</string>
+    <string name="examples_show_for_phrase">Show usage examples</string>
+
+    <!-- Explain screen -->
+    <string name="explain_source_text">Source text</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_provider_header">LLM provider</string>
+    <string name="settings_provider_active">Active provider</string>
+    <string name="settings_api_key_header">API key (%1$s)</string>
+    <string name="settings_api_key_label">API key</string>
+    <string name="settings_api_key_using_default">You are using a default key from build configuration. You can replace it with your own.</string>
+    <string name="settings_api_key_missing">No key for %1$s — paste yours to use this provider.</string>
+    <string name="settings_where_to_get_key">Where to get a key?</string>
+    <string name="settings_model_header">Model (%1$s)</string>
+    <string name="settings_model_label">Model</string>
+    <string name="settings_target_language_header">Target language (for translation)</string>
+    <string name="settings_target_language_label">Language</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_reset_gemini">Reset default Gemini key</string>
+    <string name="settings_reset_openai">Reset default OpenAI key</string>
+    <string name="settings_reset_anthropic">Reset default Anthropic key</string>
+    <string name="settings_bubble_header">Floating icon</string>
+    <string name="settings_bubble_desc">Always-on-top bubble — tap opens this app with current clipboard. Requires "Display over other apps" permission.</string>
+    <string name="settings_bubble_enable">Enable</string>
+    <string name="settings_bubble_disable">Disable</string>
+    <string name="settings_autostart_title">Auto-start with app launch</string>
+    <string name="settings_autostart_desc">The bubble turns on automatically when you open the app (requires overlay permission).</string>
+    <string name="settings_shortcuts_header">Shortcuts</string>
+    <string name="settings_shortcuts_desc">If you can\'t find the app on your screen, tap below — a system dialog will appear to add the shortcut.</string>
+    <string name="settings_pin_to_home">Pin icon to home screen</string>
+    <string name="settings_diagnostics_header">Diagnostics</string>
+    <string name="settings_diagnostics_desc">In-app logs — LLM calls, response times, parsing errors.</string>
+    <string name="settings_show_logs">Show logs</string>
+    <string name="settings_language_header">App language</string>
+    <string name="settings_language_desc">Interface language. \"System\" follows your phone\'s language setting.</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_language_polish">Polski</string>
+    <string name="settings_language_english">English</string>
+
+    <!-- Logs -->
+    <string name="logs_title_count">Logs (%1$d)</string>
+    <string name="logs_empty">No logs yet. Run an action (Translate / Explain) and come back.</string>
+    <string name="logs_show_raw">Show last LLM response</string>
+    <string name="logs_clear">Clear logs</string>
+    <string name="logs_share">Share logs</string>
+    <string name="logs_raw_title">Last LLM response (raw)</string>
+    <string name="logs_raw_empty">No saved LLM response. Trigger an action that ends with a parsing error — the RAW response will be saved.</string>
+    <string name="logs_raw_share_button">Share</string>
+    <string name="logs_raw_close_button">Close</string>
+
+    <!-- Errors / fallbacks -->
+    <string name="error_unknown">Unknown error</string>
+    <string name="error_empty_response">Empty response</string>
+    <string name="error_text_empty">Text is empty</string>
+    <string name="error_phrase_empty">Phrase is empty</string>
+    <string name="error_parse_failed">Parse error: %1$s</string>
+
+    <!-- Shortcut helper -->
+    <string name="shortcut_unsupported">Your launcher doesn\'t support pinning automatically — drag the icon from the app drawer manually.</string>
+    <string name="share_logs_chooser">Share logs</string>
+    <string name="show_hide_password">Show / Hide</string>
 </resources>

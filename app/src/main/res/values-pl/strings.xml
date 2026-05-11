@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bubble_desc">Pływająca ikona schowka</string>
+
+    <!-- Top app bar / common -->
+    <string name="action_settings">Ustawienia</string>
+    <string name="action_back">Wstecz</string>
+    <string name="action_close">Zamknij</string>
+    <string name="action_clear">Wyczyść</string>
+    <string name="action_share">Udostępnij</string>
+    <string name="action_delete">Usuń</string>
+    <string name="action_retry">Spróbuj ponownie</string>
+    <string name="action_copy_result">Kopiuj wynik</string>
+
+    <!-- Paste tab -->
+    <string name="paste_title">Treść ze schowka</string>
+    <string name="paste_field_label">Wklejone automatycznie</string>
+    <string name="paste_clear_text_and_result">Wyczyść tekst i wynik</string>
+    <string name="paste_clear_result">Wyczyść wynik</string>
+    <string name="action_translate">Przetłumacz</string>
+    <string name="action_explain">Wytłumacz konstrukcję</string>
+    <string name="loading_processing">Przetwarzam…</string>
+
+    <!-- Tabs -->
+    <string name="tab_paste">Schowek</string>
+    <string name="tab_subtitle_paste">Schowek</string>
+    <string name="tab_subtitle_explain">Wyjaśnienie</string>
+    <string name="tab_subtitle_examples">Przykłady</string>
+    <string name="tab_subtitle_examples_variant">Przykłady · zestaw %1$d</string>
+    <string name="tabs_title_count">Zakładki (%1$d)</string>
+    <string name="tabs_close_all">Zamknij wszystkie</string>
+    <string name="tabs_close_one">Zamknij zakładkę</string>
+    <string name="tabs_list_desc">Lista zakładek (%1$d)</string>
+
+    <!-- Examples screen -->
+    <string name="examples_title">Przykłady użycia</string>
+    <string name="examples_title_variant">Przykłady użycia · zestaw %1$d</string>
+    <string name="examples_generate_hint">Pociągnij w dół albo kliknij ↻ żeby wygenerować inne przykłady.</string>
+    <string name="examples_loading">Generuję przykłady…</string>
+    <string name="examples_loading_progress">Generuję przykłady… (%1$d/5)</string>
+    <string name="examples_label_one">Przykład %1$d</string>
+    <string name="examples_usage">Użycie</string>
+    <string name="examples_regenerate">Wygeneruj nowy zestaw</string>
+    <string name="examples_show_for_phrase">Pokaż przykłady użycia</string>
+
+    <!-- Explain screen -->
+    <string name="explain_source_text">Tekst źródłowy</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Ustawienia</string>
+    <string name="settings_provider_header">Provider LLM</string>
+    <string name="settings_provider_active">Aktywny provider</string>
+    <string name="settings_api_key_header">API key (%1$s)</string>
+    <string name="settings_api_key_label">Klucz API</string>
+    <string name="settings_api_key_using_default">Używasz domyślnego klucza z konfiguracji buildu. Możesz go zastąpić własnym.</string>
+    <string name="settings_api_key_missing">Brak klucza dla %1$s — wklej swój żeby używać tego providera.</string>
+    <string name="settings_where_to_get_key">Skąd wziąć klucz?</string>
+    <string name="settings_model_header">Model (%1$s)</string>
+    <string name="settings_model_label">Model</string>
+    <string name="settings_target_language_header">Język docelowy (dla tłumaczenia)</string>
+    <string name="settings_target_language_label">Język</string>
+    <string name="settings_save">Zapisz</string>
+    <string name="settings_reset_gemini">Przywróć domyślny klucz Gemini</string>
+    <string name="settings_reset_openai">Przywróć domyślny klucz OpenAI</string>
+    <string name="settings_reset_anthropic">Przywróć domyślny klucz Anthropic</string>
+    <string name="settings_bubble_header">Pływająca ikona</string>
+    <string name="settings_bubble_desc">Bąbel zawsze na wierzchu — kliknięcie otwiera tę aplikację z aktualnym schowkiem. Wymaga zgody „Display over other apps”.</string>
+    <string name="settings_bubble_enable">Włącz</string>
+    <string name="settings_bubble_disable">Wyłącz</string>
+    <string name="settings_autostart_title">Auto-start przy uruchomieniu aplikacji</string>
+    <string name="settings_autostart_desc">Bąbel włącza się sam gdy otwierasz aplikację (wymaga zgody overlay).</string>
+    <string name="settings_shortcuts_header">Skróty</string>
+    <string name="settings_shortcuts_desc">Jeśli nie możesz znaleźć aplikacji na ekranie, kliknij poniżej — pojawi się systemowy dialog do dodania skrótu.</string>
+    <string name="settings_pin_to_home">Przypnij ikonę na ekran główny</string>
+    <string name="settings_diagnostics_header">Diagnostyka</string>
+    <string name="settings_diagnostics_desc">Logi wewnątrz aplikacji — wywołania LLM, czasy odpowiedzi, błędy parsowania.</string>
+    <string name="settings_show_logs">Pokaż logi</string>
+    <string name="settings_language_header">Język aplikacji</string>
+    <string name="settings_language_desc">Język interfejsu. „Systemowy” podąża za ustawieniem języka telefonu.</string>
+    <string name="settings_language_system">Systemowy</string>
+    <string name="settings_language_polish">Polski</string>
+    <string name="settings_language_english">English</string>
+
+    <!-- Logs -->
+    <string name="logs_title_count">Logi (%1$d)</string>
+    <string name="logs_empty">Brak logów. Wykonaj akcję (Przetłumacz / Wytłumacz) i wróć tutaj.</string>
+    <string name="logs_show_raw">Pokaż ostatnią odpowiedź LLM</string>
+    <string name="logs_clear">Wyczyść logi</string>
+    <string name="logs_share">Udostępnij logi</string>
+    <string name="logs_raw_title">Ostatnia odpowiedź LLM (raw)</string>
+    <string name="logs_raw_empty">Brak zapisanej odpowiedzi LLM. Wykonaj akcję która kończy się błędem parsowania — wtedy RAW response zostanie zapisany.</string>
+    <string name="logs_raw_share_button">Udostępnij</string>
+    <string name="logs_raw_close_button">Zamknij</string>
+
+    <!-- Errors / fallbacks -->
+    <string name="error_unknown">Nieznany błąd</string>
+    <string name="error_empty_response">Pusta odpowiedź</string>
+    <string name="error_text_empty">Tekst jest pusty</string>
+    <string name="error_phrase_empty">Fraza jest pusta</string>
+    <string name="error_parse_failed">Błąd parsowania: %1$s</string>
+
+    <!-- Shortcut helper -->
+    <string name="shortcut_unsupported">Twój launcher nie wspiera automatycznego przypinania — przeciągnij ikonę z app drawera ręcznie.</string>
+    <string name="share_logs_chooser">Udostępnij logi</string>
+    <string name="show_hide_password">Pokaż / Ukryj</string>
+</resources>

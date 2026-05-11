@@ -27,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.floatingclipboard.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -72,18 +74,21 @@ fun PasteTabContent(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Treść ze schowka", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.paste_title), style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
             value = tab.text,
             onValueChange = onTextChange,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 160.dp),
-            label = { Text("Wklejone automatycznie") },
+            label = { Text(stringResource(R.string.paste_field_label)) },
             trailingIcon = {
                 if (tab.text.isNotEmpty()) {
                     IconButton(onClick = onClearAll) {
-                        Icon(Icons.Default.Clear, contentDescription = "Wyczyść tekst i wynik")
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = stringResource(R.string.paste_clear_text_and_result),
+                        )
                     }
                 }
             },
@@ -94,8 +99,12 @@ fun PasteTabContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val canRun = tab.text.isNotBlank() && tab.actionState !is ActionState.Loading
-            Button(onClick = onTranslate, enabled = canRun) { Text(Action.TRANSLATE.displayName) }
-            Button(onClick = onExplain, enabled = canRun) { Text(Action.EXPLAIN_SENTENCE.displayName) }
+            Button(onClick = onTranslate, enabled = canRun) {
+                Text(stringResource(R.string.action_translate))
+            }
+            Button(onClick = onExplain, enabled = canRun) {
+                Text(stringResource(R.string.action_explain))
+            }
             if (tab.actionState !is ActionState.Idle) {
                 IconButton(
                     onClick = onClearResult,
@@ -103,7 +112,7 @@ fun PasteTabContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Clear,
-                        contentDescription = "Wyczyść wynik",
+                        contentDescription = stringResource(R.string.paste_clear_result),
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -140,7 +149,7 @@ private fun TranslatePanel(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    Text("Przetwarzam…")
+                    Text(stringResource(R.string.loading_processing))
                 }
                 state.partialText?.takeIf { it.isNotBlank() }?.let { partial ->
                     SelectionContainer {
@@ -160,10 +169,12 @@ private fun TranslatePanel(
             val text = (state.result as? ActionResult.Text)?.text ?: return
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(Action.TRANSLATE.displayName, style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_translate), style = MaterialTheme.typography.labelLarge)
                     SelectionContainer { Text(text) }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { onCopy(text) }) { Text("Kopiuj wynik") }
+                        TextButton(onClick = { onCopy(text) }) {
+                            Text(stringResource(R.string.action_copy_result))
+                        }
                     }
                 }
             }
