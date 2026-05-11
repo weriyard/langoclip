@@ -29,6 +29,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import com.floatingclipboard.R
 import androidx.compose.ui.text.font.FontFamily
@@ -43,6 +44,10 @@ import com.floatingclipboard.data.Tab
  * Explain tab view — snapshot of the original text (collapsed at the top) + breakdown result.
  * No editable field; this screen is read-only.
  */
+// Light blue for the full sentence translation — distinct from primary accent used elsewhere.
+// Tuned to read well on both light and dark Material 3 themes.
+private val TranslationBlue = Color(0xFF5BA0E0)
+
 @Composable
 fun ExplainTabContent(
     tab: Tab.Explain,
@@ -50,6 +55,12 @@ fun ExplainTabContent(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val fullTranslation: String? = when (val s = tab.state) {
+        is ActionState.Success -> (s.result as? ActionResult.Breakdown)?.fullTranslation?.takeIf { it.isNotBlank() }
+        is ActionState.Loading -> s.partialFullTranslation?.takeIf { it.isNotBlank() }
+        else -> null
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -70,6 +81,16 @@ fun ExplainTabContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 4,
             )
+        }
+        if (fullTranslation != null) {
+            SelectionContainer {
+                Text(
+                    text = fullTranslation,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TranslationBlue,
+                    fontStyle = FontStyle.Italic,
+                )
+            }
         }
 
         ResultPanel(state = tab.state, onShowExamples = onShowExamples, onRetry = onRetry)

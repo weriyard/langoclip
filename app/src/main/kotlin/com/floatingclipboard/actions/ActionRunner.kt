@@ -68,6 +68,7 @@ class ActionRunner(
             StreamingArrayParser(json, "items", BreakdownItemDto.serializer())
         } else null
         var lastBreakdownEmitted = 0
+        var lastFullTranslation: String? = null
         var deltaCount = 0
         val startedAt = System.currentTimeMillis()
 
@@ -81,10 +82,19 @@ class ActionRunner(
                 if (showPartialText) {
                     emit(ActionState.Loading(action, partialText = builder.toString()))
                 } else if (breakdownParser != null) {
-                    val items = breakdownParser.extract(builder.toString()).map { it.toDomain() }
-                    if (items.size > lastBreakdownEmitted) {
+                    val accumulator = builder.toString()
+                    val items = breakdownParser.extract(accumulator).map { it.toDomain() }
+                    val translation = extractStringField(accumulator, "fullTranslation")
+                    val itemsChanged = items.size > lastBreakdownEmitted
+                    val translationChanged = translation != null && translation != lastFullTranslation
+                    if (itemsChanged || translationChanged) {
                         lastBreakdownEmitted = items.size
-                        emit(ActionState.Loading(action, partialBreakdown = items))
+                        if (translation != null) lastFullTranslation = translation
+                        emit(ActionState.Loading(
+                            action,
+                            partialBreakdown = items.takeIf { it.isNotEmpty() },
+                            partialFullTranslation = lastFullTranslation,
+                        ))
                     }
                 }
             }
@@ -208,9 +218,41 @@ class ActionRunner(
                 val items = parseBreakdownItems(rawText)
                     ?: throw IllegalStateException("Breakdown parsowanie nieudane")
                 if (items.isEmpty()) throw IllegalStateException("Breakdown bez itemów")
-                ActionResult.Breakdown(items = items)
+                val fullTranslation = extractStringField(rawText, "fullTranslation").orEmpty()
+                ActionResult.Breakdown(items = items, fullTranslation = fullTranslation)
             }
         }
+    }
+
+    /**
+     * Heuristic extractor for `"<fieldName>":"..."` value from a JSON string under construction.
+     * Used to surface root-level string fields (e.g. fullTranslation) during streaming, before the
+     * whole JSON is closed. Returns null if field not found or value not yet terminated.
+     * Handles JSON escapes (\", \\, \n) on the way out.
+     */
+    private fun extractStringField(accumulated: String, fieldName: String): String? {
+        val marker = "\"$fieldName\":\""
+        val start = accumulated.indexOf(marker)
+        if (start < 0) return null
+        val contentStart = start + marker.length
+        var i = contentStart
+        while (i < accumulated.length) {
+            val c = accumulated[i]
+            if (c == '\\' && i + 1 < accumulated.length) {
+                i += 2
+                continue
+            }
+            if (c == '"') {
+                val raw = accumulated.substring(contentStart, i)
+                return raw
+                    .replace("\\\"", "\"")
+                    .replace("\\n", "\n")
+                    .replace("\\t", "\t")
+                    .replace("\\\\", "\\")
+            }
+            i++
+        }
+        return null
     }
 
     /**

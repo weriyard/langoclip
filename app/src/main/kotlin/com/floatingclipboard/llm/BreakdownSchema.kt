@@ -15,6 +15,7 @@ import kotlinx.serialization.json.putJsonObject
 internal val BREAKDOWN_SCHEMA: JsonElement = buildJsonObject {
     put("type", "OBJECT")
     putJsonObject("properties") {
+        putJsonObject("fullTranslation") { put("type", "STRING") }
         putJsonObject("items") {
             put("type", "ARRAY")
             putJsonObject("items") {
@@ -41,5 +42,6 @@ internal val BREAKDOWN_SCHEMA: JsonElement = buildJsonObject {
             }
         }
     }
-    putJsonArray("required") { add("items") }
+    putJsonArray("required") { add("fullTranslation"); add("items") }
+    putJsonArray("propertyOrdering") { add("fullTranslation"); add("items") }
 }

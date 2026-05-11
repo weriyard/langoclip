@@ -2,9 +2,14 @@
 
 Break the user's sentence into meaningful parts. The output MUST be JSON matching the schema.
 
+The response object has TWO top-level fields:
+1. **fullTranslation** — a single, natural-sounding translation of the WHOLE user sentence into
+   **{targetLanguage}**. One sentence (or as many as the original has). Provide it FIRST.
+2. **items** — array of meaningful parts (see rules below).
+
 **CRITICAL FORMAT REQUIREMENT**: The `items` field MUST be a real JSON array of objects.
 Do NOT return it as a stringified JSON. Do NOT wrap it in quotes. Output:
-`{"items": [{"original": "...", ...}, ...]}` — never `{"items": "[...]"}`.
+`{"fullTranslation": "...", "items": [{"original": "...", ...}, ...]}` — never `{"items": "[...]"}`.
 
 ## Rules for building the `items` list
 
