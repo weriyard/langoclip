@@ -31,6 +31,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
             isUsingDefaultAnthropicKey = true,
             anthropicModel = Provider.ANTHROPIC.defaultModel,
             targetLanguage = SettingsRepository.DEFAULT_TARGET_LANGUAGE,
+            autoStartBubble = true,
         ),
     )
 
@@ -73,6 +74,10 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
 
     fun resetAnthropicApiKey() {
         viewModelScope.launch { repo.setAnthropicApiKey("") }
+    }
+
+    fun setAutoStartBubble(enabled: Boolean) {
+        viewModelScope.launch { repo.setAutoStartBubble(enabled) }
     }
 
     companion object {

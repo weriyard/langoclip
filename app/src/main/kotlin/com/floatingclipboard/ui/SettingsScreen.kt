@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -328,6 +329,23 @@ fun SettingsScreen(
             ) {
                 Button(onClick = onEnableBubble, modifier = Modifier.weight(1f)) { Text("Włącz") }
                 OutlinedButton(onClick = onDisableBubble, modifier = Modifier.weight(1f)) { Text("Wyłącz") }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Auto-start przy uruchomieniu aplikacji", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Bąbel włącza się sam gdy otwierasz aplikację (wymaga zgody overlay).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = saved.autoStartBubble,
+                    onCheckedChange = { viewModel.setAutoStartBubble(it) },
+                )
             }
 
             Text("Diagnostyka", style = MaterialTheme.typography.titleMedium)

@@ -58,7 +58,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.floatingclipboard.data.SettingsRepository
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import com.floatingclipboard.actions.Action
 import com.floatingclipboard.actions.ActionResult
 import com.floatingclipboard.actions.BreakdownItem
@@ -95,6 +99,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        maybeAutoStartBubble()
         setContent {
             AppTheme {
                 AppNavigation(
@@ -143,6 +148,19 @@ class MainActivity : ComponentActivity() {
 
     private fun stopBubble() {
         stopService(Intent(this, BubbleService::class.java))
+    }
+
+    /**
+     * Auto-start bąbla przy otwarciu aplikacji jeśli setting włączony i mamy overlay permission.
+     * Brak permission → po prostu nic nie robimy (NIE spamujemy permission dialogiem przy każdym
+     * uruchomieniu — user może go włączyć manualnie z Settings).
+     */
+    private fun maybeAutoStartBubble() {
+        if (!Settings.canDrawOverlays(this)) return
+        lifecycleScope.launch {
+            val settings = SettingsRepository(applicationContext).settings.first()
+            if (settings.autoStartBubble) startBubble()
+        }
     }
 }
 
