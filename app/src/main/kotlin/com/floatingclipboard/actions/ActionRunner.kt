@@ -1,7 +1,7 @@
 package com.floatingclipboard.actions
 
-import android.util.Log
 import com.floatingclipboard.data.LlmCache
+import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
 import com.floatingclipboard.llm.BREAKDOWN_SCHEMA
@@ -20,18 +20,13 @@ class ActionRunner(
     private val settingsRepository: SettingsRepository,
     private val prompts: PromptLoader,
     private val cache: LlmCache,
+    private val logs: LogStore,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-    /** Wystawia aktualne ustawienia dla VM (np. żeby pokazać aktywny provider w UI). */
     val settings: Flow<Settings> get() = settingsRepository.settings
 
-    /**
-     * Streaming wariant głównych akcji (TRANSLATE, EXPLAIN_SENTENCE). Emituje [ActionState] od
-     * Loading (z partialText dla TRANSLATE) do Success/Error. Cache hit → emituje od razu Success.
-     * Cache miss → odpala stream, akumuluje, parsuje całość, kachuje, emituje Success.
-     */
     fun runStreaming(action: Action, userText: String): Flow<ActionState> = flow {
         if (userText.isBlank()) {
             emit(ActionState.Error(action, "Tekst jest pusty"))
@@ -44,16 +39,20 @@ class ActionRunner(
         )
         val key = LlmCache.keyFor(CACHE_VERSION, "${settings.provider.name}:${settings.activeModel}", systemPrompt, userText)
 
-        cache.get(key)?.let { rawCached ->
-            Log.d(TAG, "CACHE HIT ${settings.provider.name}/${settings.activeModel} action=$action")
-            parseAction(action, rawCached).fold(
-                onSuccess = { emit(ActionState.Success(action, it)) },
-                onFailure = { emit(ActionState.Error(action, "Cache parse error: ${it.message}")) },
-            )
-            return@flow
+        val cached = cache.get(key)
+        if (cached != null) {
+            val parsed = parseAction(action, cached)
+            if (parsed.isSuccess) {
+                logs.d(TAG, "CACHE HIT ${settings.provider.name}/${settings.activeModel} action=$action")
+                emit(ActionState.Success(action, parsed.getOrThrow()))
+                return@flow
+            }
+            // Cache trzymał zły JSON — invaliduj i spadnij do live calla.
+            logs.w(TAG, "CACHE_CORRUPT evicting; reason=${parsed.exceptionOrNull()?.message?.take(120)}")
+            cache.invalidate(key)
         }
 
-        Log.d(TAG, "CALL  ${settings.provider.name}/${settings.activeModel} action=$action textLen=${userText.length}")
+        logs.d(TAG, "CALL  ${settings.provider.name}/${settings.activeModel} action=$action textLen=${userText.length}")
         emit(ActionState.Loading(action))
         val client = createLlmClient(settings)
         val schema = if (action == Action.EXPLAIN_SENTENCE) BREAKDOWN_SCHEMA else null
@@ -69,7 +68,7 @@ class ActionRunner(
             client.stream(systemPrompt, userText, schema).collect { delta ->
                 deltaCount++
                 if (deltaCount == 1) {
-                    Log.d(TAG, "TTFT  ${System.currentTimeMillis() - startedAt}ms (first delta arrived)")
+                    logs.d(TAG, "TTFT  ${System.currentTimeMillis() - startedAt}ms (first delta arrived)")
                 }
                 builder.append(delta)
                 if (showPartialText) {
@@ -78,32 +77,40 @@ class ActionRunner(
                     val items = breakdownParser.extractItems(builder.toString())
                     if (items.size > lastBreakdownEmitted) {
                         lastBreakdownEmitted = items.size
-                        Log.d(TAG, "PART  ${System.currentTimeMillis() - startedAt}ms — ${items.size} items parsed so far")
                         emit(ActionState.Loading(action, partialBreakdown = items))
                     }
                 }
             }
-            Log.d(TAG, "DONE  ${System.currentTimeMillis() - startedAt}ms total, $deltaCount deltas, ${builder.length} chars")
+            logs.d(TAG, "DONE  ${System.currentTimeMillis() - startedAt}ms total, $deltaCount deltas, ${builder.length} chars")
             val full = builder.toString()
             if (full.isBlank()) {
+                logs.w(TAG, "EMPTY response from ${settings.provider.name}")
                 emit(ActionState.Error(action, "Pusta odpowiedź"))
                 return@flow
             }
-            cache.put(key, full)
             parseAction(action, full).fold(
-                onSuccess = { emit(ActionState.Success(action, it)) },
-                onFailure = { emit(ActionState.Error(action, "Parse error: ${it.message}")) },
+                onSuccess = {
+                    // CACHE WRITE TYLKO PO SUKCESIE PARSE — zły JSON nigdy nie trafia do cache.
+                    cache.put(key, full)
+                    emit(ActionState.Success(action, it))
+                },
+                onFailure = { err ->
+                    logs.e(TAG, "PARSE_ERROR action=$action: ${err.message}")
+                    logs.e(TAG, "RAW(prefix): ${full.take(400)}")
+                    emit(ActionState.Error(action, "Parse error: ${err.message}"))
+                },
             )
         } catch (e: CancellationException) {
             throw e
         } catch (e: LlmError) {
+            logs.e(TAG, "LLM_ERROR ${e::class.simpleName}: ${e.message}")
             emit(ActionState.Error(action, e.message ?: "Nieznany błąd"))
         } catch (e: Throwable) {
+            logs.e(TAG, "UNKNOWN_ERROR ${e::class.simpleName}: ${e.message}")
             emit(ActionState.Error(action, e.message ?: "Nieznany błąd"))
         }
     }
 
-    /** Examples — non-streaming, structured JSON. Stream nie daje benefitu (nie da się parsować częściowo). */
     suspend fun runExamples(phrase: String): Result<PhraseExamples> {
         if (phrase.isBlank()) {
             return Result.failure(IllegalArgumentException("Fraza jest pusta"))
@@ -116,17 +123,34 @@ class ActionRunner(
         val key = LlmCache.keyFor(CACHE_VERSION, "${settings.provider.name}:${settings.activeModel}", systemPrompt, phrase)
 
         cache.get(key)?.let { rawCached ->
-            return parseExamples(phrase, rawCached)
+            val result = parseExamples(phrase, rawCached)
+            if (result.isSuccess) {
+                logs.d(TAG, "CACHE HIT examples phrase='${phrase.take(40)}'")
+                return result
+            }
+            logs.w(TAG, "CACHE_CORRUPT examples; evicting key")
+            cache.invalidate(key)
+            // Spadamy do live calla.
         }
 
+        logs.d(TAG, "CALL  examples ${settings.provider.name}/${settings.activeModel} phrase='${phrase.take(40)}'")
         val client = createLlmClient(settings)
         return client.complete(systemPrompt, phrase, EXAMPLES_SCHEMA)
             .fold(
                 onSuccess = { rawText ->
-                    cache.put(key, rawText)
-                    parseExamples(phrase, rawText)
+                    parseExamples(phrase, rawText).also { result ->
+                        if (result.isSuccess) {
+                            cache.put(key, rawText)
+                        } else {
+                            logs.e(TAG, "PARSE_ERROR examples: ${result.exceptionOrNull()?.message}")
+                            logs.e(TAG, "RAW(prefix): ${rawText.take(400)}")
+                        }
+                    }
                 },
-                onFailure = { Result.failure(it) },
+                onFailure = {
+                    logs.e(TAG, "LLM_ERROR examples: ${it.message}")
+                    Result.failure(it)
+                },
             )
     }
 
@@ -135,6 +159,9 @@ class ActionRunner(
             Action.TRANSLATE -> ActionResult.Text(rawText)
             Action.EXPLAIN_SENTENCE -> {
                 val dto = json.decodeFromString<BreakdownDto>(rawText)
+                if (dto.items.isEmpty()) {
+                    throw IllegalStateException("Breakdown bez itemów")
+                }
                 ActionResult.Breakdown(items = dto.items.map { it.toDomain() })
             }
         }
@@ -142,11 +169,13 @@ class ActionRunner(
 
     private fun parseExamples(phrase: String, rawText: String): Result<PhraseExamples> = runCatching {
         val dto = json.decodeFromString<ExamplesDto>(rawText)
+        if (dto.examples.isEmpty()) {
+            throw IllegalStateException("Examples bez przykładów")
+        }
         PhraseExamples(phrase = phrase, examples = dto.examples.map { it.toDomain() })
     }
 
     companion object {
-        // Bump przy zmianach formatu odpowiedzi / DTO żeby invalidate cały cache.
         private const val CACHE_VERSION = "v1"
         private const val TAG = "LLM"
     }
@@ -172,16 +201,24 @@ private fun BreakdownItemDto.toDomain() = BreakdownItem(
     explanation = explanation,
 )
 
-/**
- * Parsuje akumulator stringa zawierający częściowy JSON `{"items":[{...},{...},...]}` i wyciąga
- * tylko KOMPLETNE sub-obiekty z tablicy items. Pozwala renderować pojedyncze BreakdownItem'y
- * w UI gdy tylko model skończy je generować, zamiast czekać na całe zdanie.
- *
- * Algorytm: licznik klamerek z poprawną obsługą stringów (cudzysłowy + escape'y) — `{` i `}`
- * wewnątrz stringów nie liczymy. Każdy zamknięty obiekt na głębokości 0 → próba deserializacji.
- * Niepowodzenie (np. Gemini wstawi pole którego nie znamy) → ignorujemy ten item, zostaje w
- * akumulatorze do końcowego pełnego parse'u.
- */
+@Serializable
+private data class ExamplesDto(
+    val examples: List<ExampleDto> = emptyList(),
+)
+
+@Serializable
+private data class ExampleDto(
+    val english: String = "",
+    val translation: String = "",
+    val usageNote: String = "",
+)
+
+private fun ExampleDto.toDomain() = Example(
+    english = english,
+    translation = translation,
+    usageNote = usageNote,
+)
+
 private class StreamingBreakdownParser(private val json: Json) {
     private val itemsMarker = "\"items\":["
 
@@ -223,21 +260,3 @@ private class StreamingBreakdownParser(private val json: Json) {
         return items
     }
 }
-
-@Serializable
-private data class ExamplesDto(
-    val examples: List<ExampleDto> = emptyList(),
-)
-
-@Serializable
-private data class ExampleDto(
-    val english: String = "",
-    val translation: String = "",
-    val usageNote: String = "",
-)
-
-private fun ExampleDto.toDomain() = Example(
-    english = english,
-    translation = translation,
-    usageNote = usageNote,
-)

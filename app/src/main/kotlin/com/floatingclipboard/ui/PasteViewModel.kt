@@ -12,6 +12,7 @@ import com.floatingclipboard.actions.ActionRunner
 import com.floatingclipboard.actions.BreakdownItem
 import com.floatingclipboard.actions.PromptLoader
 import com.floatingclipboard.data.LlmCache
+import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.SettingsRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,6 +91,7 @@ class PasteViewModel(private val runner: ActionRunner) : ViewModel() {
                         SettingsRepository(app),
                         PromptLoader(app),
                         LlmCache.getInstance(app),
+                        LogStore.getInstance(app),
                     )
                 )
             }

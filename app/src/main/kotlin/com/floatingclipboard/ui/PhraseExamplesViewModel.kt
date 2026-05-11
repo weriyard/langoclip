@@ -10,6 +10,7 @@ import com.floatingclipboard.actions.ActionRunner
 import com.floatingclipboard.actions.PhraseExamples
 import com.floatingclipboard.actions.PromptLoader
 import com.floatingclipboard.data.LlmCache
+import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,6 +53,7 @@ class PhraseExamplesViewModel(private val runner: ActionRunner) : ViewModel() {
                         SettingsRepository(app),
                         PromptLoader(app),
                         LlmCache.getInstance(app),
+                        LogStore.getInstance(app),
                     )
                 )
             }

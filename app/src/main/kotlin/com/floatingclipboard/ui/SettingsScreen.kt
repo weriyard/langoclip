@@ -57,6 +57,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onEnableBubble: () -> Unit,
     onDisableBubble: () -> Unit,
+    onOpenLogs: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
 ) {
@@ -327,6 +328,19 @@ fun SettingsScreen(
             ) {
                 Button(onClick = onEnableBubble, modifier = Modifier.weight(1f)) { Text("Włącz") }
                 OutlinedButton(onClick = onDisableBubble, modifier = Modifier.weight(1f)) { Text("Wyłącz") }
+            }
+
+            Text("Diagnostyka", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Logi wewnątrz aplikacji — wywołania LLM, czasy odpowiedzi, błędy parsowania.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenLogs,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Pokaż logi")
             }
 
             Text("Skróty", style = MaterialTheme.typography.titleMedium)
