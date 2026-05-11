@@ -102,6 +102,7 @@ class ActionRunner(
                 onFailure = { err ->
                     logs.e(TAG, "PARSE_ERROR action=$action: ${err.message}")
                     logs.e(TAG, "RAW(prefix): ${full.take(400)}")
+                    logs.saveLastRaw("$action @ ${settings.provider.name}/${settings.activeModel}", full)
                     emit(ActionState.Error(action, "Parse error: ${err.message}"))
                 },
             )
@@ -159,6 +160,7 @@ class ActionRunner(
                         } else {
                             logs.e(TAG, "PARSE_ERROR examples: ${result.exceptionOrNull()?.message}")
                             logs.e(TAG, "RAW(prefix): ${rawText.take(400)}")
+                            logs.saveLastRaw("EXAMPLES @ ${settings.provider.name}/${settings.activeModel}", rawText)
                         }
                     }
                 },
@@ -187,27 +189,8 @@ class ActionRunner(
      *   czyli `{"items": "[\n  {\n    \"original\": ...]"}`. Wtedy items.jsonPrimitive.content
      *   to escapowany JSON, który trzeba odeszczepić i sparsować jako array. Loguje "RECOVERED".
      */
-    private fun parseBreakdownItems(rawText: String): List<BreakdownItem>? {
-        runCatching {
-            return json.decodeFromString<BreakdownDto>(rawText).items.map { it.toDomain() }
-        }
-        // Recovery — sprawdź czy items jest stringiem.
-        runCatching {
-            val root = json.parseToJsonElement(rawText)
-            if (root !is JsonObject) return null
-            val itemsField = root["items"] ?: return null
-            if (itemsField is JsonPrimitive && itemsField.isString) {
-                val arrayJson = itemsField.jsonPrimitive.content
-                val arr = json.parseToJsonElement(arrayJson)
-                if (arr is JsonArray) {
-                    val recovered = arr.map { json.decodeFromJsonElement(BreakdownItemDto.serializer(), it) }
-                    logs.w(TAG, "RECOVERED breakdown items from stringified array (Claude tool-use quirk)")
-                    return recovered.map { it.toDomain() }
-                }
-            }
-        }
-        return null
-    }
+    private fun parseBreakdownItems(rawText: String): List<BreakdownItem>? =
+        tryDeserializeArray(rawText, "items", BreakdownItemDto.serializer())?.map { it.toDomain() }
 
     private fun parseExamples(phrase: String, rawText: String): Result<PhraseExamples> = runCatching {
         val examples = parseExamplesList(rawText)
@@ -216,24 +199,93 @@ class ActionRunner(
         PhraseExamples(phrase = phrase, examples = examples)
     }
 
-    private fun parseExamplesList(rawText: String): List<Example>? {
+    private fun parseExamplesList(rawText: String): List<Example>? =
+        tryDeserializeArray(rawText, "examples", ExampleDto.serializer())?.map { it.toDomain() }
+
+    /**
+     * Liberalny parser dla obiektu `{<fieldName>: [...]}` zwracanego przez LLM. Obsługuje:
+     *  1. Czysty JSON: `{"items":[...]}`.
+     *  2. Markdown-wrapped: ` ```json\n{"items":[...]}\n``` `.
+     *  3. Items jako stringified array: `{"items":"[...]"}`.
+     *  4. Cały response jako stringified JSON: `"{\"items\":[...]}"`.
+     *  5. Items missing — pierwszy znaleziony JsonArray w roocie traktowany jako lista.
+     *  6. Items jako pojedynczy obiekt zamiast listy (Claude czasem tak robi).
+     */
+    private fun <T> tryDeserializeArray(
+        rawText: String,
+        fieldName: String,
+        elementSerializer: kotlinx.serialization.KSerializer<T>,
+    ): List<T>? {
+        val cleaned = stripMarkdownWrap(rawText).trim()
+
+        // Próba: parse jako JsonElement i znajdź pole.
         runCatching {
-            return json.decodeFromString<ExamplesDto>(rawText).examples.map { it.toDomain() }
+            val root = parseLiberal(cleaned)
+            val list = extractArrayField(root, fieldName) ?: extractFirstArray(root)
+            if (list != null) {
+                return list.map { json.decodeFromJsonElement(elementSerializer, it) }
+            }
+        }.onFailure {
+            logs.w(TAG, "PARSE attempt failed: ${it.message?.take(120)}")
         }
-        runCatching {
-            val root = json.parseToJsonElement(rawText)
-            if (root !is JsonObject) return null
-            val field = root["examples"] ?: return null
-            if (field is JsonPrimitive && field.isString) {
-                val arr = json.parseToJsonElement(field.jsonPrimitive.content)
-                if (arr is JsonArray) {
-                    val recovered = arr.map { json.decodeFromJsonElement(ExampleDto.serializer(), it) }
-                    logs.w(TAG, "RECOVERED examples from stringified array")
-                    return recovered.map { it.toDomain() }
-                }
+        return null
+    }
+
+    /** Parsuje raw, jeśli string-as-JSON (otoczony cudzysłowami), odeszczepia. */
+    private fun parseLiberal(raw: String): kotlinx.serialization.json.JsonElement {
+        val parsed = json.parseToJsonElement(raw)
+        if (parsed is JsonPrimitive && parsed.isString) {
+            // Cały response był stringified JSON-em
+            val inner = parsed.jsonPrimitive.content
+            logs.w(TAG, "RECOVERED whole response was stringified JSON")
+            return json.parseToJsonElement(inner)
+        }
+        return parsed
+    }
+
+    private fun extractArrayField(root: kotlinx.serialization.json.JsonElement, fieldName: String): JsonArray? {
+        if (root !is JsonObject) return null
+        val field = root[fieldName] ?: return null
+        return when {
+            field is JsonArray -> field
+            field is JsonPrimitive && field.isString -> {
+                // Stringified array
+                val inner = json.parseToJsonElement(field.jsonPrimitive.content)
+                logs.w(TAG, "RECOVERED $fieldName from stringified array (tool-use quirk)")
+                inner as? JsonArray
+            }
+            field is JsonObject -> {
+                // Pojedynczy obiekt zamiast listy — zawiń w listę
+                logs.w(TAG, "RECOVERED $fieldName was single object, wrapping in list")
+                JsonArray(listOf(field))
+            }
+            else -> null
+        }
+    }
+
+    private fun extractFirstArray(root: kotlinx.serialization.json.JsonElement): JsonArray? {
+        if (root !is JsonObject) return null
+        // Last-resort: weź pierwszy JsonArray jaki znajdziesz w polach roota
+        for ((_, value) in root) {
+            if (value is JsonArray && value.isNotEmpty()) {
+                logs.w(TAG, "RECOVERED items via first-array fallback")
+                return value
             }
         }
         return null
+    }
+
+    /** Usuwa ` ```json\n{...}\n``` ` opakowanie jeśli model je dodał (markdown formatting). */
+    private fun stripMarkdownWrap(raw: String): String {
+        val trimmed = raw.trim()
+        val withoutFence = trimmed
+            .removePrefix("```json").removePrefix("```JSON").removePrefix("```")
+            .removeSuffix("```")
+            .trim()
+        return if (withoutFence != trimmed) {
+            logs.w(TAG, "RECOVERED stripped markdown wrap")
+            withoutFence
+        } else trimmed
     }
 
     companion object {

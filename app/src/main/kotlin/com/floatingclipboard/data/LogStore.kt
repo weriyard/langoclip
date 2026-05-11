@@ -42,6 +42,7 @@ class LogStore private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val file = File(appContext.filesDir, "logs.txt")
     private val rotatedFile = File(appContext.filesDir, "logs.prev.txt")
+    private val lastRawFile = File(appContext.filesDir, "last_raw.txt")
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val fileMutex = Mutex()
 
@@ -78,6 +79,21 @@ class LogStore private constructor(context: Context) {
     /** Cały bufor jako tekst, np. do przekazania przez share intent. */
     fun snapshot(): String =
         _entries.value.joinToString("\n") { it.formatted() }
+
+    /** Zapisuje PEŁNY raw response z LLM do osobnego pliku — do diagnozy parse errorów. */
+    fun saveLastRaw(label: String, content: String) {
+        ioScope.launch {
+            fileMutex.withLock {
+                runCatching {
+                    lastRawFile.writeText("[$label]\n$content")
+                }
+            }
+        }
+    }
+
+    fun readLastRaw(): String? = runCatching {
+        if (lastRawFile.exists()) lastRawFile.readText() else null
+    }.getOrNull()
 
     private fun appendToFile(entry: LogEntry) {
         ioScope.launch {
