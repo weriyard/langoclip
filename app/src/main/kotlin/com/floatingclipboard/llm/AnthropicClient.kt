@@ -26,12 +26,13 @@ import java.io.IOException
 
 /**
  * Klient Anthropic Messages API. Streaming SSE z eventami `message_start`, `content_block_delta`,
- * `message_stop` itp. Tekstowe delty mają `delta.type == "text_delta"`, JSON dla tool use ma
- * `delta.type == "input_json_delta"` z `partial_json` — caller akumuluje, parsuje na końcu.
+ * `message_stop` itp. Tekstowe delty mają `delta.type == "text_delta"`.
  *
- * Structured output realizujemy przez **tool use**: rejestrujemy fikcyjne tool z input_schema =
- * naszą schemą, wymuszamy `tool_choice: { type: "tool", name: "submit" }`, model zwraca JSON jako
- * input narzędzia. To wzorzec produkcyjny dla Anthropic, bo nie mają natywnego JSON Schema mode.
+ * Structured output: porzucamy tool use (Sonnet 4.6 przy długich schemach zwraca arrays jako
+ * stringified JSON ze zepsutymi escape'ami — niemożliwe do zdeserializowania). Zamiast tego:
+ * dorzucamy schemę do system promptu jako tekst i prosimy model o plain JSON response w content.
+ * Trade-off: brak hard validation, ale Claude w plain text mode konsystentnie respektuje opisaną
+ * strukturę i nie ma layeru "tool input encoded as escaped string".
  */
 class AnthropicClient(
     private val apiKey: String,
@@ -59,7 +60,12 @@ class AnthropicClient(
                 }
             }
             val body = response.body<AnthropicResponse>()
-            extractFinal(body, jsonSchema != null) ?: throw LlmError.EmptyResponse
+            val text = body.content.firstOrNull { it.type == "text" }
+                ?.text
+                ?.takeIf { it.isNotBlank() }
+                ?: throw LlmError.EmptyResponse
+            // Prefilled "{" nie wraca w response, doklejamy z przodu dla structured output.
+            if (jsonSchema != null) "{$text" else text
         }.recoverCatching { e ->
             throw mapError(e)
         }
@@ -72,6 +78,8 @@ class AnthropicClient(
     ): Flow<String> = flow {
         if (apiKey.isBlank()) throw LlmError.MissingApiKey
         val parser = Json { ignoreUnknownKeys = true }
+        // Prefilled assistant message z `{` nie wraca w response — doklejamy go z przodu.
+        var prefillEmitted = jsonSchema == null
 
         llmHttpClient.preparePost(BASE_URL) {
             header(HEADER_API_KEY, apiKey)
@@ -98,9 +106,15 @@ class AnthropicClient(
                 } catch (e: SerializationException) {
                     null
                 }
+                // Bez tool use bierzemy tylko text_delta — JSON odpowiedzi siedzi w treści.
                 if (event?.type == "content_block_delta") {
-                    event.delta?.text?.takeIf { it.isNotEmpty() }?.let { emit(it) }
-                    event.delta?.partialJson?.takeIf { it.isNotEmpty() }?.let { emit(it) }
+                    event.delta?.text?.takeIf { it.isNotEmpty() }?.let { text ->
+                        if (!prefillEmitted) {
+                            emit("{")
+                            prefillEmitted = true
+                        }
+                        emit(text)
+                    }
                 }
             }
         }
@@ -113,37 +127,43 @@ class AnthropicClient(
         userPrompt: String,
         jsonSchema: JsonElement?,
         stream: Boolean,
-    ) = AnthropicRequest(
-        model = model,
-        system = systemPrompt.takeIf { it.isNotBlank() },
-        messages = listOf(AnthropicMessage(role = "user", content = userPrompt)),
-        maxTokens = MAX_TOKENS,
-        stream = stream,
-        tools = jsonSchema?.let {
-            listOf(
-                AnthropicTool(
-                    name = TOOL_NAME,
-                    description = "Submit the structured output as defined by the schema. " +
-                            "CRITICAL: All array fields MUST be actual JSON arrays " +
-                            "(starting with `[` and containing objects), NEVER strings that " +
-                            "look like arrays. Do not stringify nested data.",
-                    inputSchema = toAnthropicSchema(it),
-                )
-            )
-        },
-        toolChoice = jsonSchema?.let { AnthropicToolChoice(type = "tool", name = TOOL_NAME) },
-    )
+    ): AnthropicRequest {
+        // Gdy mamy schemę, doklejamy ją do system promptu jako tekstową instrukcję — nie używamy
+        // tool use (patrz docstring klasy). Wymuszamy żeby PIERWSZY znak odpowiedzi był `{` —
+        // to znana technika: model rzadziej dorzuca prefacing text typu "Here's the JSON:".
+        val effectiveSystem = if (jsonSchema != null) {
+            buildString {
+                if (systemPrompt.isNotBlank()) {
+                    append(systemPrompt)
+                    append("\n\n")
+                }
+                append("Output MUST be valid JSON matching this schema exactly. ")
+                append("Reply with the JSON object only — no markdown fences, no commentary, ")
+                append("no leading or trailing text. Start your response with `{` and end with `}`.\n\n")
+                append("Schema:\n```json\n")
+                append(jsonSchema.toString())
+                append("\n```")
+            }
+        } else systemPrompt.takeIf { it.isNotBlank() } ?: ""
 
-    private fun extractFinal(body: AnthropicResponse, isStructured: Boolean): String? {
-        if (isStructured) {
-            // Bierzemy input z tool_use bloku i serializujemy z powrotem do JSON-a (cache trzyma string).
-            val toolUse = body.content.firstOrNull { it.type == "tool_use" }
-            return toolUse?.input?.toString()
+        // Prefill JSON na "{" sprawia że model jest zmuszony kontynuować jako JSON od pierwszego
+        // tokena. To Anthropic-specific trick: assistant message z partial content na końcu.
+        val messages = if (jsonSchema != null) {
+            listOf(
+                AnthropicMessage(role = "user", content = userPrompt),
+                AnthropicMessage(role = "assistant", content = "{"),
+            )
+        } else {
+            listOf(AnthropicMessage(role = "user", content = userPrompt))
         }
-        return body.content
-            .firstOrNull { it.type == "text" }
-            ?.text
-            ?.takeIf { it.isNotBlank() }
+
+        return AnthropicRequest(
+            model = model,
+            system = effectiveSystem.takeIf { it.isNotBlank() },
+            messages = messages,
+            maxTokens = MAX_TOKENS,
+            stream = stream,
+        )
     }
 
     private fun mapError(e: Throwable): Throwable = when (e) {
@@ -159,7 +179,6 @@ class AnthropicClient(
         private const val HEADER_VERSION = "anthropic-version"
         private const val ANTHROPIC_VERSION = "2023-06-01"
         private const val MAX_TOKENS = 8192
-        private const val TOOL_NAME = "submit_structured"
     }
 }
 
@@ -171,29 +190,12 @@ private data class AnthropicRequest(
     @SerialName("max_tokens")
     val maxTokens: Int,
     val stream: Boolean = false,
-    val tools: List<AnthropicTool>? = null,
-    @SerialName("tool_choice")
-    val toolChoice: AnthropicToolChoice? = null,
 )
 
 @Serializable
 private data class AnthropicMessage(
     val role: String,
     val content: String,
-)
-
-@Serializable
-private data class AnthropicTool(
-    val name: String,
-    val description: String,
-    @SerialName("input_schema")
-    val inputSchema: JsonElement,
-)
-
-@Serializable
-private data class AnthropicToolChoice(
-    val type: String,
-    val name: String,
 )
 
 @Serializable
@@ -207,8 +209,6 @@ private data class AnthropicResponse(
 private data class AnthropicContentBlock(
     val type: String,
     val text: String? = null,
-    val name: String? = null,
-    val input: JsonElement? = null,
 )
 
 @Serializable
@@ -221,6 +221,4 @@ private data class AnthropicStreamEvent(
 private data class AnthropicStreamDelta(
     val type: String? = null,
     val text: String? = null,
-    @SerialName("partial_json")
-    val partialJson: String? = null,
 )
