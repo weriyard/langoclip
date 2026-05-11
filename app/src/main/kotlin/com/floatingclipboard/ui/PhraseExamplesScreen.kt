@@ -38,6 +38,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -171,6 +175,60 @@ fun PhraseExamplesScreen(
     }
 }
 
+/**
+ * Buduje AnnotatedString z podświetloną frazą. Próba 1: case-sensitive match `span`. Próba 2:
+ * case-insensitive (Sonnet czasem zmienia kapitalizację w zdaniu). Wszystkie wystąpienia są
+ * podświetlone — fraza może pojawić się więcej niż raz w jednym zdaniu.
+ */
+private fun highlightedEnglish(
+    english: String,
+    span: String,
+    highlightColor: androidx.compose.ui.graphics.Color,
+): AnnotatedString {
+    if (span.isBlank() || english.isBlank()) return AnnotatedString(english)
+    val style = SpanStyle(
+        color = highlightColor,
+        fontWeight = FontWeight.ExtraBold,
+    )
+
+    // Find all match positions (try case-sensitive first, fallback to case-insensitive).
+    val positions = mutableListOf<IntRange>()
+    var search = english
+    var offset = 0
+    while (true) {
+        val idx = search.indexOf(span)
+        if (idx < 0) break
+        positions.add((offset + idx) until (offset + idx + span.length))
+        val next = idx + span.length
+        if (next >= search.length) break
+        search = search.substring(next)
+        offset += next
+    }
+    if (positions.isEmpty()) {
+        // Fallback: case-insensitive.
+        val lower = english.lowercase()
+        val needle = span.lowercase()
+        var from = 0
+        while (true) {
+            val idx = lower.indexOf(needle, startIndex = from)
+            if (idx < 0) break
+            positions.add(idx until (idx + needle.length))
+            from = idx + needle.length
+        }
+    }
+    if (positions.isEmpty()) return AnnotatedString(english)
+
+    return buildAnnotatedString {
+        var cursor = 0
+        positions.sortedBy { it.first }.forEach { range ->
+            if (range.first > cursor) append(english.substring(cursor, range.first))
+            withStyle(style) { append(english.substring(range.first, range.last + 1)) }
+            cursor = range.last + 1
+        }
+        if (cursor < english.length) append(english.substring(cursor))
+    }
+}
+
 @Composable
 private fun ExampleItem(index: Int, example: Example) {
     val primary = MaterialTheme.colorScheme.primary
@@ -191,7 +249,7 @@ private fun ExampleItem(index: Int, example: Example) {
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = example.english,
+                text = highlightedEnglish(example.english, example.highlightedSpan, primary),
                 fontWeight = FontWeight.SemiBold,
                 fontFamily = FontFamily.SansSerif,
                 style = MaterialTheme.typography.titleMedium,
