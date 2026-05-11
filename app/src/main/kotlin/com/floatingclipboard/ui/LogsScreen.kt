@@ -37,8 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.floatingclipboard.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.floatingclipboard.data.LogEntry
 import com.floatingclipboard.data.LogLevel
@@ -66,21 +68,33 @@ fun LogsScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Logi (${entries.size})") },
+                title = { Text(stringResource(R.string.logs_title_count, entries.size)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { rawDialogOpen = true }) {
-                        Icon(Icons.Default.RawOn, contentDescription = "Pokaż ostatnią odpowiedź LLM")
+                        Icon(
+                            Icons.Default.RawOn,
+                            contentDescription = stringResource(R.string.logs_show_raw),
+                        )
                     }
                     IconButton(onClick = { shareLogs(context, store.snapshot()) }) {
-                        Icon(Icons.Default.Share, contentDescription = "Udostępnij logi")
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = stringResource(R.string.logs_share),
+                        )
                     }
                     IconButton(onClick = { store.clear() }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Wyczyść logi")
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.logs_clear),
+                        )
                     }
                 },
             )
@@ -92,7 +106,7 @@ fun LogsScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    "Brak logów. Wykonaj akcję (Przetłumacz / Wytłumacz) i wróć tutaj.",
+                    stringResource(R.string.logs_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -111,13 +125,11 @@ fun LogsScreen(
     }
 
     if (rawDialogOpen) {
-        val raw = remember(rawDialogOpen) {
-            store.readLastRaw()
-                ?: "Brak zapisanej odpowiedzi LLM. Wykonaj akcję która kończy się błędem parsowania — wtedy RAW response zostanie zapisany."
-        }
+        val emptyMsg = stringResource(R.string.logs_raw_empty)
+        val raw = remember(rawDialogOpen) { store.readLastRaw() ?: emptyMsg }
         AlertDialog(
             onDismissRequest = { rawDialogOpen = false },
-            title = { Text("Ostatnia odpowiedź LLM (raw)") },
+            title = { Text(stringResource(R.string.logs_raw_title)) },
             text = {
                 Column(
                     modifier = Modifier
@@ -136,10 +148,12 @@ fun LogsScreen(
                 TextButton(onClick = {
                     shareLogs(context, raw)
                     rawDialogOpen = false
-                }) { Text("Udostępnij") }
+                }) { Text(stringResource(R.string.logs_raw_share_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { rawDialogOpen = false }) { Text("Zamknij") }
+                TextButton(onClick = { rawDialogOpen = false }) {
+                    Text(stringResource(R.string.logs_raw_close_button))
+                }
             },
         )
     }
@@ -169,5 +183,7 @@ private fun shareLogs(context: Context, snapshot: String) {
         putExtra(Intent.EXTRA_SUBJECT, "Floating Clipboard logs")
         putExtra(Intent.EXTRA_TEXT, snapshot)
     }
-    context.startActivity(Intent.createChooser(intent, "Udostępnij logi"))
+    context.startActivity(
+        Intent.createChooser(intent, context.getString(R.string.share_logs_chooser))
+    )
 }

@@ -3,9 +3,9 @@ package com.floatingclipboard.actions
 import android.content.Context
 
 /**
- * Ładuje system prompty z plików .md w `assets/prompts/`. Każdy prompt jest cachowany po pierwszym
- * odczycie (pliki są małe i się nie zmieniają w runtime). Templating: `{var}` w treści jest
- * podmieniane przez wartości z mapy w [render].
+ * Loads system prompts from .md files in `assets/prompts/`. Each prompt is cached after the first
+ * read (files are small and don't change at runtime). Templating: `{var}` in the body is replaced
+ * with values from the map in [render].
  */
 class PromptLoader(context: Context) {
 

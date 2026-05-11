@@ -25,8 +25,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Master ViewModel zarządzający wszystkimi zakładkami. Zastępuje wcześniejsze PasteViewModel
- * i PhraseExamplesViewModel — te ekrany teraz biorą state z odpowiedniej zakładki w
+ * Master ViewModel managing all tabs. Replaces the earlier PasteViewModel and
+ * PhraseExamplesViewModel — those screens now read state from the corresponding tab in
  * [TabsRepository].
  */
 class TabsViewModel(
@@ -48,15 +48,15 @@ class TabsViewModel(
     fun close(id: TabId) = tabs.close(id)
     fun closeAllExceptPaste() = tabs.closeAllExceptPaste()
 
-    // === Paste (Schowek) operations ===
+    // === Paste tab operations ===
 
     fun setPasteText(text: String) {
         tabs.updatePaste { it.copy(text = text) }
     }
 
     /**
-     * Przyjmuje tekst od systemowego Share intent / Process Text. Przełącza na Schowek,
-     * nadpisuje text + resetuje wynik. Pusty input ignorowany (no-op).
+     * Accepts text from the system Share intent / Process Text. Switches to the Paste tab,
+     * overwrites the text + resets the result. Empty input is ignored (no-op).
      */
     fun receiveSharedText(text: String) {
         val trimmed = text.trim()
@@ -65,12 +65,12 @@ class TabsViewModel(
         tabs.updatePaste { it.copy(text = trimmed, actionState = ActionState.Idle) }
     }
 
-    /** Translate jako akcja inline w Schowku (NIE tworzy nowej zakładki). */
+    /** Translate as an inline action in the Paste tab (does NOT create a new tab). */
     fun translateInPaste() {
         val paste = tabs.tabs.value.firstOrNull { it is Tab.Paste } as? Tab.Paste ?: return
         val text = paste.text
         if (text.isBlank()) return
-        // Dedup: ten sam tekst + Translate w Success → nic nie rób.
+        // Dedup: same text + Translate in Success → do nothing.
         val current = paste.actionState
         if (current is ActionState.Success && current.action == Action.TRANSLATE) return
 
@@ -82,7 +82,7 @@ class TabsViewModel(
         tabs.putJob(Tab.PASTE_ID, job)
     }
 
-    /** Wytłumacz tworzy NOWĄ zakładkę (snapshot) i streamuje wynik do jej state. */
+    /** Explain creates a NEW tab (snapshot) and streams the result into its state. */
     fun explainAsNewTab() {
         val paste = tabs.tabs.value.firstOrNull { it is Tab.Paste } as? Tab.Paste ?: return
         val text = paste.text
@@ -106,13 +106,13 @@ class TabsViewModel(
 
     // === Examples operations ===
 
-    /** Otwiera nową zakładkę Examples dla danej frazy + auto-fetch pierwszego zestawu. */
+    /** Opens a new Examples tab for the given phrase + auto-fetches the first set. */
     fun showExamplesAsNewTab(phrase: String, translation: String) {
         val tabId = tabs.openExamples(phrase, translation, ExamplesState.Loading())
         fetchExamples(tabId, phrase, variant = 0)
     }
 
-    /** Pull-to-refresh / regenerate dla istniejącej zakładki Examples — bump variant counter. */
+    /** Pull-to-refresh / regenerate for an existing Examples tab — bumps the variant counter. */
     fun regenerateExamples(tabId: TabId) {
         val tab = tabs.tabs.value.firstOrNull { it.id == tabId } as? Tab.Examples ?: return
         val nextVariant = tab.variant + 1

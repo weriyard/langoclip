@@ -7,7 +7,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
-/** Schemat dla 5 przykładów użycia frazy. minItems/maxItems wymuszają dokładnie 5. */
+/** Schema for 5 usage examples of a phrase. minItems/maxItems enforce exactly 5. */
 internal val EXAMPLES_SCHEMA: JsonElement = buildJsonObject {
     put("type", "OBJECT")
     putJsonObject("properties") {

@@ -25,13 +25,13 @@ import kotlinx.serialization.json.JsonElement
 import java.io.IOException
 
 /**
- * Klient Anthropic Messages API z natywnym **structured outputs** (GA od 2025-11).
+ * Anthropic Messages API client with native **structured outputs** (GA since 2025-11).
  *
- * Schema idzie w `output_config.format` (type=json_schema) — model jest constraintowany na
- * poziomie tokenizacji, gwarancja poprawnego JSON-a zgodnego ze schematem. Response wraca jako
- * stringified JSON w `content[0].text`.
+ * Schema goes in `output_config.format` (type=json_schema) — the model is constrained at the
+ * tokenization level, guaranteeing valid JSON conforming to the schema. The response arrives as
+ * stringified JSON in `content[0].text`.
  *
- * Bez tool use, bez prefill, bez schema-in-system-prompt — clean integration.
+ * No tool use, no prefill, no schema-in-system-prompt — clean integration.
  */
 class AnthropicClient(
     private val apiKey: String,
@@ -101,7 +101,7 @@ class AnthropicClient(
                 } catch (e: SerializationException) {
                     null
                 }
-                // Structured outputs streamują też przez text_delta — content[0].text rośnie tokenowo.
+                // Structured outputs also stream via text_delta — content[0].text grows token-by-token.
                 if (event?.type == "content_block_delta") {
                     event.delta?.text?.takeIf { it.isNotEmpty() }?.let { emit(it) }
                 }
@@ -122,9 +122,9 @@ class AnthropicClient(
         messages = listOf(AnthropicMessage(role = "user", content = userPrompt)),
         maxTokens = MAX_TOKENS,
         stream = stream,
-        // GA structured outputs — schema constraint na poziomie tokenizacji. Reuse OpenAI strict
-        // converter, bo wymagania są identyczne: lowercase typy, additionalProperties: false,
-        // bez propertyOrdering / minItems / maxItems.
+        // GA structured outputs — schema constraint at the tokenization level. Reuse OpenAI strict
+        // converter since the requirements are identical: lowercase types, additionalProperties: false,
+        // no propertyOrdering / minItems / maxItems.
         outputConfig = jsonSchema?.let {
             AnthropicOutputConfig(
                 format = AnthropicOutputFormat(

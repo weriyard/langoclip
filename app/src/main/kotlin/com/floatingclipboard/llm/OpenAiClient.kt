@@ -26,10 +26,10 @@ import kotlinx.serialization.json.JsonElement
 import java.io.IOException
 
 /**
- * Klient OpenAI Chat Completions API. Streaming via SSE z `data: {...}` i terminatorem
- * `data: [DONE]`. Structured output przez `response_format: { type: "json_schema", strict: true }` —
- * schema musi być w formacie OpenAI strict (lowercase typy, additionalProperties:false). Robimy
- * konwersję z naszego Gemini-formattu w [toOpenAiStrictSchema].
+ * OpenAI Chat Completions API client. Streaming via SSE with `data: {...}` and `data: [DONE]`
+ * terminator. Structured output via `response_format: { type: "json_schema", strict: true }` —
+ * the schema must be in OpenAI strict format (lowercase types, additionalProperties:false). We
+ * convert from our Gemini-format in [toOpenAiStrictSchema].
  */
 class OpenAiClient(
     private val apiKey: String,

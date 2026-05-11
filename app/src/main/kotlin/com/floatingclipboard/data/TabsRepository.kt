@@ -12,22 +12,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Identyfikator zakładki. Long zamiast UUID — w UI używamy do `key()` w Compose, mniejszy hit
- * memory niż String UUID.
+ * Tab identifier. Long instead of UUID — used as Compose `key()` in the UI, smaller memory hit
+ * than a String UUID.
  */
 @JvmInline
 value class TabId(val value: Long)
 
 /**
- * Stan pojedynczej zakładki. Każdy wariant nosi swój własny state, niezależnie od pozostałych.
+ * State of a single tab. Each variant carries its own state, independent of the others.
  *
- * - [Paste] — jedyna stała zakładka (`id == PASTE_ID`), bez X, edytowalne pole tekstowe + wynik
- *   inline (Translate). Wytłumacz w Schowku NIE zmienia jej stanu na breakdown, tylko tworzy
- *   nowy [Explain] tab (snapshot).
- * - [Explain] — snapshot wyniku Wytłumacz dla konkretnego tekstu. Streamuje w Loading, finalnie
- *   Success/Error. Tytuł = pierwsze ~25 znaków tekstu.
- * - [Examples] — snapshot 5 przykładów dla frazy. Pull-to-refresh / regenerate tworzą nowy
- *   wariant w tej samej zakładce (variant counter trzymany w stanie).
+ * - [Paste] — the only persistent tab (`id == PASTE_ID`), no X, editable text field + inline
+ *   result (Translate). Explain inside the Paste tab does NOT switch it to breakdown, it only
+ *   creates a new [Explain] tab (snapshot).
+ * - [Explain] — snapshot of an Explain result for a specific text. Streams in Loading, finally
+ *   Success/Error. Title = first ~25 characters of the text.
+ * - [Examples] — snapshot of 5 examples for a phrase. Pull-to-refresh / regenerate create a new
+ *   variant in the same tab (variant counter is kept in state).
  */
 sealed interface Tab {
     val id: TabId
@@ -72,19 +72,19 @@ sealed interface Tab {
 }
 
 /**
- * Singleton in-memory store dla zakładek. Operacje:
- *  - [updatePaste] modyfikuje pierwszą zakładkę (Schowek).
- *  - [openExplain] / [openExamples] tworzą nową zakładkę i auto-przełączają na nią.
- *  - [updateTab] aktualizuje konkretną zakładkę (np. streaming progress).
- *  - [close] zamyka zakładkę; jeśli była aktywna, przełącza na poprzednią (lub Schowek).
- *  - [putJob] / [getJob] przechowują streamingowe Job per tab id — dzięki temu zamknięcie
- *    zakładki w trakcie streamingu anuluje request.
+ * Singleton in-memory store for tabs. Operations:
+ *  - [updatePaste] modifies the first tab (Paste tab).
+ *  - [openExplain] / [openExamples] create a new tab and auto-switch to it.
+ *  - [updateTab] updates a specific tab (e.g. streaming progress).
+ *  - [close] closes a tab; if it was active, switches to the previous one (or the Paste tab).
+ *  - [putJob] / [getJob] store the streaming Job per tab id — so closing a tab during streaming
+ *    cancels the request.
  *
- * NIE persistujemy. Restart apki = pusty stan (tylko Schowek).
+ * NOT persisted. App restart = empty state (only the Paste tab).
  */
 class TabsRepository private constructor() {
 
-    private val idGen = AtomicLong(1)  // 0 zarezerwowane dla Schowka
+    private val idGen = AtomicLong(1)  // 0 is reserved for the Paste tab
 
     private val _tabs = MutableStateFlow<List<Tab>>(listOf(Tab.Paste()))
     val tabs: StateFlow<List<Tab>> = _tabs.asStateFlow()
@@ -137,21 +137,21 @@ class TabsRepository private constructor() {
     }
 
     fun close(id: TabId) {
-        if (id == Tab.PASTE_ID) return  // Schowek nie ma X
+        if (id == Tab.PASTE_ID) return  // Paste tab has no X
         jobs.remove(id)?.cancel()
         val currentList = _tabs.value
         val idx = currentList.indexOfFirst { it.id == id }
         if (idx < 0) return
         val newList = currentList.filterIndexed { i, _ -> i != idx }
         _tabs.value = newList
-        // Jeśli zamknięta była aktywna, przełącz na poprzednią lub Schowek.
+        // If the closed tab was active, switch to the previous one or the Paste tab.
         if (_selectedId.value == id) {
             val fallback = newList.getOrNull(idx - 1)?.id ?: Tab.PASTE_ID
             _selectedId.value = fallback
         }
     }
 
-    /** Zamyka wszystkie zakładki poza Schowkiem. Anuluje wszystkie streamingowe joby. */
+    /** Closes all tabs except the Paste tab. Cancels all streaming jobs. */
     fun closeAllExceptPaste() {
         jobs.keys
             .filter { it != Tab.PASTE_ID }
@@ -165,7 +165,7 @@ class TabsRepository private constructor() {
         jobs[id] = job
     }
 
-    /** Pomocnicze rozszerzenie żeby update nie potrzebował copy(...) na zewnątrz. */
+    /** Helper extension so update doesn't require copy(...) on the outside. */
     private fun <T> MutableStateFlow<T>.update(transform: (T) -> T) {
         value = transform(value)
     }

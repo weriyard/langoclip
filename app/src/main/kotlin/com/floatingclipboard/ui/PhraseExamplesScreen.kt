@@ -39,7 +39,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.floatingclipboard.R
 import com.floatingclipboard.actions.Example
 import com.floatingclipboard.data.Tab
 
@@ -88,12 +90,12 @@ fun ExamplesTabContent(
                         }
                     }
                     IconButton(onClick = onRegenerate, enabled = !isRefreshing) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Wygeneruj nowy zestaw")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.examples_regenerate))
                     }
                 }
                 if (tab.variant > 0) {
                     Text(
-                        text = "zestaw ${tab.variant + 1}",
+                        text = stringResource(R.string.tab_subtitle_examples_variant, tab.variant + 1),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -101,7 +103,7 @@ fun ExamplesTabContent(
             }
             HorizontalDivider()
             Text(
-                text = "Pociągnij w dół albo kliknij ↻ żeby wygenerować inne przykłady.",
+                text = stringResource(R.string.examples_generate_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -117,8 +119,8 @@ fun ExamplesTabContent(
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp))
                         Text(
-                            text = if (s.partial.isEmpty()) "Generuję przykłady…"
-                            else "Generuję przykłady… (${s.partial.size}/5)",
+                            text = if (s.partial.isEmpty()) stringResource(R.string.examples_loading)
+                            else stringResource(R.string.examples_loading_progress, s.partial.size),
                             fontFamily = FontFamily.SansSerif,
                         )
                     }
@@ -201,7 +203,7 @@ private fun ExampleItem(index: Int, example: Example) {
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = "Przykład $index",
+                text = stringResource(R.string.examples_label_one, index),
                 style = MaterialTheme.typography.labelMedium,
                 color = primary,
                 fontFamily = FontFamily.SansSerif,
@@ -237,7 +239,7 @@ private fun ExampleItem(index: Int, example: Example) {
                     Spacer(Modifier.width(6.dp))
                     Column {
                         Text(
-                            text = "Użycie",
+                            text = stringResource(R.string.examples_usage),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.SansSerif,

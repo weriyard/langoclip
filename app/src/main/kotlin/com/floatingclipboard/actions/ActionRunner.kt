@@ -52,7 +52,7 @@ class ActionRunner(
                 emit(ActionState.Success(action, parsed.getOrThrow()))
                 return@flow
             }
-            // Cache trzymał zły JSON — invaliduj i spadnij do live calla.
+            // Cache held bad JSON — invalidate and fall through to a live call.
             logs.w(TAG, "CACHE_CORRUPT evicting; reason=${parsed.exceptionOrNull()?.message?.take(120)}")
             cache.invalidate(key)
         }
@@ -97,7 +97,7 @@ class ActionRunner(
             }
             parseAction(action, full).fold(
                 onSuccess = {
-                    // CACHE WRITE TYLKO PO SUKCESIE PARSE — zły JSON nigdy nie trafia do cache.
+                    // CACHE WRITE ONLY AFTER SUCCESSFUL PARSE — bad JSON never reaches the cache.
                     cache.put(key, full)
                     emit(ActionState.Success(action, it))
                 },
@@ -214,10 +214,10 @@ class ActionRunner(
     }
 
     /**
-     * Próba 1: standardowy decodeFromString — działa gdy items to prawdziwy JSON array.
-     * Próba 2 (recovery): czasem Claude w tool use wraps tablicę jako stringified JSON,
-     *   czyli `{"items": "[\n  {\n    \"original\": ...]"}`. Wtedy items.jsonPrimitive.content
-     *   to escapowany JSON, który trzeba odeszczepić i sparsować jako array. Loguje "RECOVERED".
+     * Attempt 1: standard decodeFromString — works when items is a real JSON array.
+     * Attempt 2 (recovery): sometimes Claude in tool use wraps the array as stringified JSON,
+     *   i.e. `{"items": "[\n  {\n    \"original\": ...]"}`. Then items.jsonPrimitive.content
+     *   is escaped JSON that has to be unwrapped and parsed as an array. Logs "RECOVERED".
      */
     private fun parseBreakdownItems(rawText: String): List<BreakdownItem>? =
         tryDeserializeArray(rawText, "items", BreakdownItemDto.serializer())?.map { it.toDomain() }
@@ -233,13 +233,13 @@ class ActionRunner(
         tryDeserializeArray(rawText, "examples", ExampleDto.serializer())?.map { it.toDomain() }
 
     /**
-     * Liberalny parser dla obiektu `{<fieldName>: [...]}` zwracanego przez LLM. Obsługuje:
-     *  1. Czysty JSON: `{"items":[...]}`.
+     * Liberal parser for the `{<fieldName>: [...]}` object returned by the LLM. Handles:
+     *  1. Plain JSON: `{"items":[...]}`.
      *  2. Markdown-wrapped: ` ```json\n{"items":[...]}\n``` `.
-     *  3. Items jako stringified array: `{"items":"[...]"}`.
-     *  4. Cały response jako stringified JSON: `"{\"items\":[...]}"`.
-     *  5. Items missing — pierwszy znaleziony JsonArray w roocie traktowany jako lista.
-     *  6. Items jako pojedynczy obiekt zamiast listy (Claude czasem tak robi).
+     *  3. Items as a stringified array: `{"items":"[...]"}`.
+     *  4. The whole response as stringified JSON: `"{\"items\":[...]}"`.
+     *  5. Items missing — the first JsonArray found in the root is treated as the list.
+     *  6. Items as a single object instead of a list (Claude does this sometimes).
      */
     private fun <T> tryDeserializeArray(
         rawText: String,
@@ -248,7 +248,7 @@ class ActionRunner(
     ): List<T>? {
         val cleaned = stripMarkdownWrap(rawText).trim()
 
-        // Próba: parse jako JsonElement i znajdź pole.
+        // Attempt: parse as JsonElement and find the field.
         runCatching {
             val root = parseLiberal(cleaned)
             val list = extractArrayField(root, fieldName) ?: extractFirstArray(root)
@@ -261,11 +261,11 @@ class ActionRunner(
         return null
     }
 
-    /** Parsuje raw, jeśli string-as-JSON (otoczony cudzysłowami), odeszczepia. */
+    /** Parses raw; if string-as-JSON (wrapped in quotes), unwraps it. */
     private fun parseLiberal(raw: String): kotlinx.serialization.json.JsonElement {
         val parsed = json.parseToJsonElement(raw)
         if (parsed is JsonPrimitive && parsed.isString) {
-            // Cały response był stringified JSON-em
+            // The whole response was stringified JSON
             val inner = parsed.jsonPrimitive.content
             logs.w(TAG, "RECOVERED whole response was stringified JSON")
             return json.parseToJsonElement(inner)
@@ -285,7 +285,7 @@ class ActionRunner(
                 inner as? JsonArray
             }
             field is JsonObject -> {
-                // Pojedynczy obiekt zamiast listy — zawiń w listę
+                // Single object instead of a list — wrap it in a list
                 logs.w(TAG, "RECOVERED $fieldName was single object, wrapping in list")
                 JsonArray(listOf(field))
             }
@@ -295,7 +295,7 @@ class ActionRunner(
 
     private fun extractFirstArray(root: kotlinx.serialization.json.JsonElement): JsonArray? {
         if (root !is JsonObject) return null
-        // Last-resort: weź pierwszy JsonArray jaki znajdziesz w polach roota
+        // Last-resort: take the first JsonArray found among the root's fields
         for ((_, value) in root) {
             if (value is JsonArray && value.isNotEmpty()) {
                 logs.w(TAG, "RECOVERED items via first-array fallback")
@@ -305,7 +305,7 @@ class ActionRunner(
         return null
     }
 
-    /** Usuwa ` ```json\n{...}\n``` ` opakowanie jeśli model je dodał (markdown formatting). */
+    /** Removes ` ```json\n{...}\n``` ` wrapping if the model added it (markdown formatting). */
     private fun stripMarkdownWrap(raw: String): String {
         val trimmed = raw.trim()
         val withoutFence = trimmed
@@ -319,8 +319,8 @@ class ActionRunner(
     }
 
     companion object {
-        // v6: prompt dla EXPLAIN wzmocniony o verbal constructions jako jeden item +
-        // explanation format z nazwą czasu i rozbiciem komponentów.
+        // v6: EXPLAIN prompt reinforced with verbal constructions as a single item +
+        // explanation format including tense name and component breakdown.
         private const val CACHE_VERSION = "v6"
         private const val TAG = "LLM"
     }
@@ -367,11 +367,11 @@ private fun ExampleDto.toDomain() = Example(
 )
 
 /**
- * Progressive parser dla strukturalnego output rosnącego tokenowo. Szuka markera
- * `"<fieldName>":[`, potem liczy klamerki z poprawną obsługą stringów i escape'ów żeby
- * wydobyć KOMPLETNE sub-obiekty z tablicy. Każdy kompletny obiekt próbuje zdeserializować
- * przez podany [elementSerializer]; niepoprawne fragmenty (np. zbyt wcześnie odczytane)
- * są ignorowane — wrócą gdy pełny obiekt zostanie zaakceptowany w kolejnej iteracji.
+ * Progressive parser for structured output that grows token-by-token. Looks for the marker
+ * `"<fieldName>":[`, then counts braces with correct string and escape handling to extract
+ * COMPLETE sub-objects from the array. Each complete object is tried against the provided
+ * [elementSerializer]; invalid fragments (e.g. read too early) are ignored — they will be
+ * picked up when a full object is accepted in the next iteration.
  */
 private class StreamingArrayParser<T>(
     private val json: Json,

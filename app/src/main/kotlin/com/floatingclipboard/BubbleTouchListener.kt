@@ -8,9 +8,9 @@ import android.view.WindowManager
 import kotlin.math.abs
 
 /**
- * Rozróżnia klik od drag-a:
- * - jeśli ruch palca < touchSlop i czas < longPressTimeout -> klik (onClick)
- * - w przeciwnym razie aktualizuje pozycję view w WindowManager
+ * Distinguishes click from drag:
+ * - if finger movement < touchSlop and duration < longPressTimeout -> click (onClick)
+ * - otherwise updates the view position in WindowManager
  */
 class BubbleTouchListener(
     private val windowManager: WindowManager,

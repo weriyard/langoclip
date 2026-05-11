@@ -14,22 +14,22 @@ import java.security.MessageDigest
 import java.text.Normalizer
 
 /**
- * Cache odpowiedzi LLM (cache-aside). Klucz to hash z (wersja, model, hash system prompta,
- * znormalizowany input). Hit → zwracamy zachowaną surową odpowiedź; miss → wołamy LLM, zapisujemy.
+ * LLM response cache (cache-aside). Key is a hash of (version, model, system prompt hash,
+ * normalized input). Hit → return the stored raw response; miss → call LLM, persist it.
  *
- * Storage: in-memory mapa + persistent JSON w `filesDir`. Singleton (dwie instancje pisałyby do
- * tego samego pliku). Eviction: LRU po przekroczeniu [MAX_ENTRIES].
+ * Storage: in-memory map + persistent JSON in `filesDir`. Singleton (two instances would write
+ * to the same file). Eviction: LRU once [MAX_ENTRIES] is exceeded.
  *
- * Bulletproof zapis: serializujemy do `llm_cache.json.tmp`, potem [Files.move] z `ATOMIC_MOVE` —
- * albo plik jest stary, albo cały nowy, nigdy uciętym JSON-em. Jeśli proces zginie w trakcie
- * write'a do tmp → oryginał jest nietknięty, tmp znika przy następnym starcie ([loadFromDisk]).
+ * Bulletproof write: serialize to `llm_cache.json.tmp`, then [Files.move] with `ATOMIC_MOVE` —
+ * either the file is old or fully new, never truncated JSON. If the process dies mid-write to
+ * tmp → the original is untouched, tmp is wiped on next start ([loadFromDisk]).
  */
 class LlmCache private constructor(context: Context) {
 
     private val file = File(context.applicationContext.filesDir, "llm_cache.json")
     private val tmpFile = File(file.parentFile, "${file.name}.tmp")
-    private val mutex = Mutex()       // chroni in-memory mapę
-    private val saveMutex = Mutex()   // serializuje I/O na disk żeby nie nadpisywać tmp w wyścigu
+    private val mutex = Mutex()       // guards the in-memory map
+    private val saveMutex = Mutex()   // serializes disk I/O so we don't overwrite tmp in a race
     private val json = Json { ignoreUnknownKeys = true }
     private val memory: MutableMap<String, Entry> by lazy { loadFromDisk() }
 
@@ -47,7 +47,7 @@ class LlmCache private constructor(context: Context) {
         flushToDisk()
     }
 
-    /** Usuwa wpis o danym kluczu — używane gdy parsowanie cached responseu się wywaliło. */
+    /** Removes the entry for the given key — used when parsing of the cached response failed. */
     suspend fun invalidate(key: String) {
         val removed = mutex.withLock { memory.remove(key) != null }
         if (removed) flushToDisk()
@@ -62,8 +62,8 @@ class LlmCache private constructor(context: Context) {
     }
 
     /**
-     * Zrzuca AKTUALNY stan in-memory mapy na dysk. Snapshot brany WEWNĄTRZ saveMutex żeby
-     * concurrent puty nie ginęły — ostatni snapshot zawsze zawiera wszystkie dotychczasowe puty.
+     * Flushes the CURRENT in-memory map to disk. Snapshot is taken INSIDE saveMutex so concurrent
+     * puts aren't lost — the last snapshot always includes every put made so far.
      */
     private suspend fun flushToDisk() = withContext(Dispatchers.IO) {
         saveMutex.withLock {
@@ -77,14 +77,14 @@ class LlmCache private constructor(context: Context) {
                     StandardCopyOption.ATOMIC_MOVE,
                 )
             }.onFailure {
-                // Po nieudanym zapisie sprzątamy tmp żeby nie został zwisem do następnego startu.
+                // After a failed write, clean up tmp so it doesn't dangle until next start.
                 tmpFile.takeIf { it.exists() }?.delete()
             }
         }
     }
 
     private fun loadFromDisk(): MutableMap<String, Entry> {
-        // Sprzątamy ewentualny tmp po crash'u z poprzedniej sesji.
+        // Clean up any tmp left over from a crash in the previous session.
         runCatching { if (tmpFile.exists()) tmpFile.delete() }
         return runCatching {
             if (!file.exists()) return@runCatching mutableMapOf<String, Entry>()
@@ -111,8 +111,8 @@ class LlmCache private constructor(context: Context) {
         }
 
         /**
-         * Stabilny klucz cache. Bumpnij `version` żeby invalidate wszystko (np. zmiana formatu DTO).
-         * Edycja .md unieważnia wpisy automatycznie — system prompt jest częścią hash inputu.
+         * Stable cache key. Bump `version` to invalidate everything (e.g. DTO format change).
+         * Editing a .md invalidates entries automatically — the system prompt is part of the hash input.
          */
         fun keyFor(version: String, model: String, systemPrompt: String, input: String): String {
             val normalized = normalize(input)
@@ -121,10 +121,10 @@ class LlmCache private constructor(context: Context) {
         }
 
         /**
-         * Agresywnie kanonicznizuje tekst pod kątem klucza cache. Stosujemy TYLKO do generowania
-         * klucza — do LLM idzie oryginalny user input. Dzięki temu "She runs" ≡ "She runs." ≡
-         * "  she runs!  " ≡ "She runs?" → ten sam klucz, jeden token-call. Tradeoff: tracimy
-         * rozróżnienie deklaratywne/pytajne. Akceptowalne dla większości codziennych zapytań.
+         * Aggressively canonicalizes text for the cache key. Applied ONLY for key generation —
+         * the original user input is sent to the LLM. As a result "She runs" ≡ "She runs." ≡
+         * "  she runs!  " ≡ "She runs?" → same key, one token call. Tradeoff: we lose the
+         * declarative/interrogative distinction. Acceptable for most everyday queries.
          */
         private fun normalize(text: String): String {
             val cleaned = text
@@ -133,8 +133,8 @@ class LlmCache private constructor(context: Context) {
                 .lowercase()
                 .replace(WHITESPACE_RUN, " ")
                 .trim()
-            // Skubnięcie leading/trailing wszystkiego co nie jest literą/cyfrą — łapie kropki,
-            // wykrzykniki, cudzysłowy, nawiasy itd. Punktuacja w środku zostaje (zmienia sens).
+            // Strip leading/trailing characters that aren't letters/digits — catches periods,
+            // exclamation marks, quotes, brackets etc. Mid-string punctuation stays (it carries meaning).
             return cleaned
                 .dropWhile { !it.isLetterOrDigit() }
                 .dropLastWhile { !it.isLetterOrDigit() }

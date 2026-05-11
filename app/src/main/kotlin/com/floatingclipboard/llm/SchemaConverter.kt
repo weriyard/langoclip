@@ -6,20 +6,20 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * Konwertuje schematy z formatu Gemini (UPPERCASE typy) do strict JSON Schema OpenAI:
- * - lowercases values pod kluczem `type` (`STRING` → `string`, `OBJECT` → `object`, ...).
- * - dorzuca `additionalProperties: false` do każdego obiektu (wymóg strict mode).
- * - usuwa pola niewspierane przez OpenAI strict: `propertyOrdering` (Gemini-specific),
- *   `minItems`/`maxItems` (nie supported w strict mode).
+ * Converts schemas from the Gemini format (UPPERCASE types) to OpenAI strict JSON Schema:
+ * - lowercases values under the `type` key (`STRING` → `string`, `OBJECT` → `object`, ...).
+ * - adds `additionalProperties: false` to every object (required by strict mode).
+ * - removes fields unsupported by OpenAI strict: `propertyOrdering` (Gemini-specific),
+ *   `minItems`/`maxItems` (not supported in strict mode).
  *
- * Założenie: nasze schematy mają wszystkie pola w `required` (więc nie trzeba ich uzupełniać —
- * to też wymóg OpenAI strict). Jeśli kiedyś dodamy pole nullable, trzeba będzie tu rozszerzyć.
+ * Assumption: our schemas have all fields in `required` (so we don't need to fill them in —
+ * also an OpenAI strict requirement). If we ever add a nullable field, this needs extending.
  */
 internal fun toOpenAiStrictSchema(geminiSchema: JsonElement): JsonElement = convertNode(geminiSchema)
 
 /**
- * Wariant pod Anthropic tool input_schema: lowercase typy, usuwamy Gemini-specific
- * `propertyOrdering`, ale zachowujemy minItems/maxItems (Anthropic je obsługuje) i nie wymuszamy
+ * Variant for Anthropic tool input_schema: lowercase types, remove Gemini-specific
+ * `propertyOrdering`, but keep minItems/maxItems (Anthropic supports them) and don't force
  * `additionalProperties: false`.
  */
 internal fun toAnthropicSchema(geminiSchema: JsonElement): JsonElement = convertAnthropicNode(geminiSchema)

@@ -12,6 +12,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
+import androidx.compose.ui.res.stringResource
+import com.floatingclipboard.R
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -67,7 +69,7 @@ fun TabBar(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Zamknij zakładkę",
+                                    contentDescription = stringResource(R.string.tabs_close_one),
                                     modifier = Modifier.size(14.dp),
                                 )
                             }

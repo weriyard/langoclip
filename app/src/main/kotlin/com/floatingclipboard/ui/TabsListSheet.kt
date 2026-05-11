@@ -28,6 +28,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.floatingclipboard.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -74,7 +76,7 @@ fun TabsListSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Zakładki (${tabs.size})",
+                    text = stringResource(R.string.tabs_title_count, tabs.size),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
@@ -83,7 +85,7 @@ fun TabsListSheet(
                         onCloseAll()
                         dismissThen { }
                     }) {
-                        Text("Zamknij wszystkie")
+                        Text(stringResource(R.string.tabs_close_all))
                     }
                 }
             }
@@ -133,8 +135,15 @@ private fun TabsListItem(
         )
         Spacer(Modifier.size(12.dp))
         Column(modifier = Modifier.weight(1f)) {
+            val subtitle = when (tab) {
+                is Tab.Paste -> stringResource(R.string.tab_subtitle_paste)
+                is Tab.Explain -> stringResource(R.string.tab_subtitle_explain)
+                is Tab.Examples -> if (tab.variant > 0)
+                    stringResource(R.string.tab_subtitle_examples_variant, tab.variant + 1)
+                else stringResource(R.string.tab_subtitle_examples)
+            }
             Text(
-                text = subtitleFor(tab),
+                text = subtitle,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -151,7 +160,7 @@ private fun TabsListItem(
             IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Zamknij zakładkę",
+                    contentDescription = stringResource(R.string.tabs_close_one),
                     modifier = Modifier.size(16.dp),
                 )
             }
@@ -165,8 +174,3 @@ private fun iconFor(tab: Tab): ImageVector = when (tab) {
     is Tab.Examples -> Icons.Default.Translate
 }
 
-private fun subtitleFor(tab: Tab): String = when (tab) {
-    is Tab.Paste -> "Schowek"
-    is Tab.Explain -> "Wyjaśnienie"
-    is Tab.Examples -> if (tab.variant > 0) "Przykłady · zestaw ${tab.variant + 1}" else "Przykłady"
-}
