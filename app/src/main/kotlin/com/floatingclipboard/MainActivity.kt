@@ -27,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,12 +68,17 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* ignored — bez notyfikacji service też wystartuje */ }
 
+    // Mutable state pod incoming share/process-text intents. Compose obserwuje przez
+    // androidx.compose.runtime.mutableStateOf — VM zżera content przez LaunchedEffect.
+    private val sharedTextState = androidx.compose.runtime.mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         maybeAutoStartBubble()
+        consumeIncomingText(intent)
         setContent {
             AppTheme {
                 AppRoot(
@@ -80,9 +86,30 @@ class MainActivity : ComponentActivity() {
                     writeClipboard = ::writeClipboard,
                     onEnableBubble = ::ensureBubble,
                     onDisableBubble = ::stopBubble,
+                    sharedTextState = sharedTextState,
                 )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // singleTop launchMode → ponowne uruchomienie z innego share trafia tu.
+        consumeIncomingText(intent)
+    }
+
+    /**
+     * Wyciąga tekst z [Intent.ACTION_SEND] (Share sheet) lub [Intent.ACTION_PROCESS_TEXT]
+     * (zaznaczenie tekstu → menu kontekstowe). Sets state — Compose pickuje przez LaunchedEffect.
+     */
+    private fun consumeIncomingText(intent: Intent?) {
+        intent ?: return
+        val text: CharSequence? = when (intent.action) {
+            Intent.ACTION_SEND -> if (intent.type == "text/plain") intent.getStringExtra(Intent.EXTRA_TEXT) else null
+            Intent.ACTION_PROCESS_TEXT -> intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
+            else -> null
+        }
+        text?.toString()?.takeIf { it.isNotBlank() }?.let { sharedTextState.value = it }
     }
 
     private fun readClipboard(): String {
@@ -139,9 +166,21 @@ private fun AppRoot(
     writeClipboard: (String) -> Unit,
     onEnableBubble: () -> Unit,
     onDisableBubble: () -> Unit,
+    sharedTextState: androidx.compose.runtime.MutableState<String?>,
     viewModel: TabsViewModel = viewModel(factory = TabsViewModel.Factory),
 ) {
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
+
+    // Pickujemy incoming text z share/process-text intents, raz na każdą wartość.
+    val sharedText = sharedTextState.value
+    LaunchedEffect(sharedText) {
+        if (!sharedText.isNullOrBlank()) {
+            viewModel.receiveSharedText(sharedText)
+            // Closing overlay if open (np. Settings) żeby user widział wynik.
+            overlay = Overlay.None
+            sharedTextState.value = null
+        }
+    }
 
     when (overlay) {
         Overlay.Settings -> {

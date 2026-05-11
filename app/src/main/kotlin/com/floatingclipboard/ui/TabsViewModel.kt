@@ -14,6 +14,7 @@ import com.floatingclipboard.data.LlmCache
 import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.SettingsRepository
 import com.floatingclipboard.data.Tab
+import com.floatingclipboard.data.Tab.Companion.PASTE_ID
 import com.floatingclipboard.data.TabId
 import com.floatingclipboard.data.TabsRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -51,6 +52,17 @@ class TabsViewModel(
 
     fun setPasteText(text: String) {
         tabs.updatePaste { it.copy(text = text) }
+    }
+
+    /**
+     * Przyjmuje tekst od systemowego Share intent / Process Text. Przełącza na Schowek,
+     * nadpisuje text + resetuje wynik. Pusty input ignorowany (no-op).
+     */
+    fun receiveSharedText(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isBlank()) return
+        tabs.select(Tab.PASTE_ID)
+        tabs.updatePaste { it.copy(text = trimmed, actionState = ActionState.Idle) }
     }
 
     /** Translate jako akcja inline w Schowku (NIE tworzy nowej zakładki). */
