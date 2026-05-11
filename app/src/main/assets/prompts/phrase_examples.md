@@ -2,6 +2,10 @@
 
 Provide EXACTLY 5 different English example sentences using the phrase: **"{phrase}"**.
 
+**CRITICAL FORMAT REQUIREMENT**: The `examples` field MUST be a real JSON array of objects.
+Do NOT return it as a stringified JSON. Output:
+`{"examples": [{"english": "...", ...}, ...]}` — never `{"examples": "[...]"}`.
+
 The examples should illustrate DIFFERENT contexts / meanings / registers (formal, everyday, idiomatic, ...).
 
 ## Fields per example

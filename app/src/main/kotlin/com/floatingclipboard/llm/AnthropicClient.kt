@@ -123,7 +123,10 @@ class AnthropicClient(
             listOf(
                 AnthropicTool(
                     name = TOOL_NAME,
-                    description = "Submit the structured output requested by the system prompt.",
+                    description = "Submit the structured output as defined by the schema. " +
+                            "CRITICAL: All array fields MUST be actual JSON arrays " +
+                            "(starting with `[` and containing objects), NEVER strings that " +
+                            "look like arrays. Do not stringify nested data.",
                     inputSchema = toAnthropicSchema(it),
                 )
             )
