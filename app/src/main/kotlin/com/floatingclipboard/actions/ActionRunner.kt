@@ -111,7 +111,7 @@ class ActionRunner(
         }
     }
 
-    suspend fun runExamples(phrase: String): Result<PhraseExamples> {
+    suspend fun runExamples(phrase: String, variant: Int = 0): Result<PhraseExamples> {
         if (phrase.isBlank()) {
             return Result.failure(IllegalArgumentException("Fraza jest pusta"))
         }
@@ -120,12 +120,22 @@ class ActionRunner(
             "phrase_examples.md",
             mapOf("phrase" to phrase, "targetLanguage" to settings.targetLanguage),
         )
-        val key = LlmCache.keyFor(CACHE_VERSION, "${settings.provider.name}:${settings.activeModel}", systemPrompt, phrase)
+        // variant zmienia klucz cache (różne sety przykładów dla tej samej frazy są niezależnie
+        // cache'owane). Doklejamy też do user promptu w wariantach > 0 prośbę o NOWE zdania,
+        // żeby model nie zwrócił tych samych co poprzednio.
+        val userPrompt = if (variant == 0) phrase else
+            "$phrase\n\n(Wygeneruj ${variant + 1}. zestaw — INNE zdania niż wcześniej, inne konteksty.)"
+        val key = LlmCache.keyFor(
+            CACHE_VERSION,
+            "${settings.provider.name}:${settings.activeModel}:v$variant",
+            systemPrompt,
+            phrase,
+        )
 
         cache.get(key)?.let { rawCached ->
             val result = parseExamples(phrase, rawCached)
             if (result.isSuccess) {
-                logs.d(TAG, "CACHE HIT examples phrase='${phrase.take(40)}'")
+                logs.d(TAG, "CACHE HIT examples phrase='${phrase.take(40)}' variant=$variant")
                 return result
             }
             logs.w(TAG, "CACHE_CORRUPT examples; evicting key")
@@ -133,9 +143,9 @@ class ActionRunner(
             // Spadamy do live calla.
         }
 
-        logs.d(TAG, "CALL  examples ${settings.provider.name}/${settings.activeModel} phrase='${phrase.take(40)}'")
+        logs.d(TAG, "CALL  examples ${settings.provider.name}/${settings.activeModel} phrase='${phrase.take(40)}' variant=$variant")
         val client = createLlmClient(settings)
-        return client.complete(systemPrompt, phrase, EXAMPLES_SCHEMA)
+        return client.complete(systemPrompt, userPrompt, EXAMPLES_SCHEMA)
             .fold(
                 onSuccess = { rawText ->
                     parseExamples(phrase, rawText).also { result ->
