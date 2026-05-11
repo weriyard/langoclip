@@ -319,8 +319,9 @@ class ActionRunner(
     }
 
     companion object {
-        // v5: examples schema dorzucił highlightedSpan field.
-        private const val CACHE_VERSION = "v5"
+        // v6: prompt dla EXPLAIN wzmocniony o verbal constructions jako jeden item +
+        // explanation format z nazwą czasu i rozbiciem komponentów.
+        private const val CACHE_VERSION = "v6"
         private const val TAG = "LLM"
     }
 }

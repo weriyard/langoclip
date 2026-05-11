@@ -22,21 +22,65 @@ Do NOT return it as a stringified JSON. Do NOT wrap it in quotes. Output:
 - Keep idioms and phrasal verbs as a single unit; never split them.
 - Preserve the order of appearance from the original sentence.
 
+## CRITICAL: Verbal constructions (tenses, aspect, voice, modals) as ONE item
+
+When a verb appears with auxiliary words that together form a specific grammatical
+construction, treat the ENTIRE verbal group as a SINGLE item. This is the most important
+educational signal — splitting them defeats the purpose of grammar learning.
+
+Group as one item:
+- **Tenses & perfect aspect**: `have gone`, `has been`, `had eaten`, `will have finished`
+- **Continuous / progressive**: `is running`, `was building`, `am working`, `had been writing`
+- **Passive voice**: `was sailed`, `is being made`, `have been seen`, `will be done`
+- **Modal constructions**: `would have gone`, `should be doing`, `must have been finished`,
+  `could have done`, `might be working`
+- **Future forms**: `will leave`, `will be doing`, `is going to leave`, `was going to`
+- **Conditionals**: `would do`, `would have done`, `if I were`
+- **Past/Present habits**: `used to go`, `would always come` (habitual)
+- **Negations of all of above**: `hasn't been`, `wouldn't have gone` → ONE item
+
+Auxiliary verbs (`be`, `have`, `do`, modals) are NEVER skipped when part of such
+constructions. A "standalone" auxiliary appears only as a linking verb / copula
+(e.g. `She is tall` → `is` is the main verb here).
+
+### Explanation format for verbal constructions
+
+For every item that is a verbal construction, the `explanation` MUST contain:
+
+1. The NAME of the tense / construction in English (e.g. `Past Simple Passive`,
+   `Present Perfect Continuous`, `III Conditional`).
+2. In parentheses: the COMPONENTS — auxiliary + main verb form, using the actual words from
+   the sentence.
+
+**Examples (write yours in {targetLanguage} for non-grammatical parts, but keep tense names in English):**
+
+| Original           | partOfSpeech | explanation                                                            |
+|--------------------|--------------|------------------------------------------------------------------------|
+| `were sailed`      | VERB         | `Past Simple Passive (were + Past Participle: sailed)` — bierne czynności w przeszłości |
+| `has been working` | VERB         | `Present Perfect Continuous (have/has + been + verb-ing: working)` — czynność trwająca do teraz |
+| `would have gone`  | VERB         | `III Conditional (would + have + Past Participle: gone)` — hipoteza nieosiągnięta |
+| `is going to leave`| VERB         | `Future "going to" (be + going to + bezokolicznik: leave)` — bliski/planowany zamiar |
+| `must have been`   | VERB         | `Modal Perfect (must + have + Past Participle: been)` — silne wnioskowanie o przeszłości |
+
 ## Fields per item
 
-- **original** — the exact phrase from the user's text.
+- **original** — the exact phrase from the user's text (for verbal constructions: the full
+  multi-word phrase, e.g. `were sailed`, not just `sailed`).
 - **translation** — its translation into: **{targetLanguage}**.
-- **partOfSpeech** — one of: `NOUN`, `VERB`, `ADJECTIVE`, `ADVERB`, `PRONOUN`, `PREPOSITION`, `IDIOM`, `PHRASAL_VERB`, `OTHER`.
+- **partOfSpeech** — one of: `NOUN`, `VERB`, `ADJECTIVE`, `ADVERB`, `PRONOUN`, `PREPOSITION`,
+  `IDIOM`, `PHRASAL_VERB`, `OTHER`.
 - **explanation** — VERY brief (max 1 sentence, usually half a sentence). Write in: **{targetLanguage}**.
-  - Do NOT repeat the part of speech name ("noun", "verb", "adjective", or their target-language equivalents) — it's already encoded in `partOfSpeech`.
-  - Focus only on FUNCTION/ROLE in the sentence, or a grammatical nuance.
+  - Do NOT repeat the part of speech name ("noun", "verb", "adjective", or their target-language
+    equivalents) — it's already encoded in `partOfSpeech`.
+  - For VERBAL CONSTRUCTIONS use the format described above (tense name + components +
+    short note).
+  - For other words focus only on FUNCTION/ROLE in the sentence.
 
-### Examples
+### Examples for non-verbal items
 
-GOOD explanations (written here in Polish — write yours in {targetLanguage}):
+GOOD explanations:
 - "podmiot zdania"
 - "opisuje rodzaj opieki"
-- "Present Perfect Continuous — czynność trwająca do teraz"
 - "wskazuje cel"
 
 BAD (do NOT write like this):
