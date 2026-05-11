@@ -289,8 +289,8 @@ class ActionRunner(
     }
 
     companion object {
-        // v3: explicit "array not string" reminders + tool description update.
-        private const val CACHE_VERSION = "v3"
+        // v4: Anthropic switched to native structured outputs (output_config.format).
+        private const val CACHE_VERSION = "v4"
         private const val TAG = "LLM"
     }
 }
