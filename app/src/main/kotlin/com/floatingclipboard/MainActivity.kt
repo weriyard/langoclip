@@ -63,6 +63,7 @@ import com.floatingclipboard.actions.Action
 import com.floatingclipboard.actions.ActionResult
 import com.floatingclipboard.actions.BreakdownItem
 import com.floatingclipboard.ui.ActionState
+import com.floatingclipboard.ui.LogsScreen
 import com.floatingclipboard.ui.PasteViewModel
 import com.floatingclipboard.ui.PhraseExamplesScreen
 import com.floatingclipboard.ui.SettingsScreen
@@ -73,6 +74,7 @@ import com.floatingclipboard.ui.theme.AppTheme
 private sealed interface Screen {
     data object Paste : Screen
     data object Settings : Screen
+    data object Logs : Screen
     data class Examples(val phrase: String, val translation: String) : Screen
 }
 
@@ -165,7 +167,12 @@ private fun AppNavigation(
                 onBack = { screen = Screen.Paste },
                 onEnableBubble = onEnableBubble,
                 onDisableBubble = onDisableBubble,
+                onOpenLogs = { screen = Screen.Logs },
             )
+        }
+        Screen.Logs -> {
+            BackHandler { screen = Screen.Settings }
+            LogsScreen(onBack = { screen = Screen.Settings })
         }
         is Screen.Examples -> {
             BackHandler { screen = Screen.Paste }

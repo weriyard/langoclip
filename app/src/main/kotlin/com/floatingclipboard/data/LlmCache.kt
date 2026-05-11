@@ -47,6 +47,12 @@ class LlmCache private constructor(context: Context) {
         flushToDisk()
     }
 
+    /** Usuwa wpis o danym kluczu — używane gdy parsowanie cached responseu się wywaliło. */
+    suspend fun invalidate(key: String) {
+        val removed = mutex.withLock { memory.remove(key) != null }
+        if (removed) flushToDisk()
+    }
+
     private fun evictLruLocked() {
         val keysToRemove = memory.entries
             .sortedBy { it.value.accessedAt }
