@@ -15,6 +15,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class ActionRunner(
     private val settingsRepository: SettingsRepository,
@@ -168,26 +173,72 @@ class ActionRunner(
         when (action) {
             Action.TRANSLATE -> ActionResult.Text(rawText)
             Action.EXPLAIN_SENTENCE -> {
-                val dto = json.decodeFromString<BreakdownDto>(rawText)
-                if (dto.items.isEmpty()) {
-                    throw IllegalStateException("Breakdown bez itemów")
-                }
-                ActionResult.Breakdown(items = dto.items.map { it.toDomain() })
+                val items = parseBreakdownItems(rawText)
+                    ?: throw IllegalStateException("Breakdown parsowanie nieudane")
+                if (items.isEmpty()) throw IllegalStateException("Breakdown bez itemów")
+                ActionResult.Breakdown(items = items)
             }
         }
     }
 
-    private fun parseExamples(phrase: String, rawText: String): Result<PhraseExamples> = runCatching {
-        val dto = json.decodeFromString<ExamplesDto>(rawText)
-        if (dto.examples.isEmpty()) {
-            throw IllegalStateException("Examples bez przykładów")
+    /**
+     * Próba 1: standardowy decodeFromString — działa gdy items to prawdziwy JSON array.
+     * Próba 2 (recovery): czasem Claude w tool use wraps tablicę jako stringified JSON,
+     *   czyli `{"items": "[\n  {\n    \"original\": ...]"}`. Wtedy items.jsonPrimitive.content
+     *   to escapowany JSON, który trzeba odeszczepić i sparsować jako array. Loguje "RECOVERED".
+     */
+    private fun parseBreakdownItems(rawText: String): List<BreakdownItem>? {
+        runCatching {
+            return json.decodeFromString<BreakdownDto>(rawText).items.map { it.toDomain() }
         }
-        PhraseExamples(phrase = phrase, examples = dto.examples.map { it.toDomain() })
+        // Recovery — sprawdź czy items jest stringiem.
+        runCatching {
+            val root = json.parseToJsonElement(rawText)
+            if (root !is JsonObject) return null
+            val itemsField = root["items"] ?: return null
+            if (itemsField is JsonPrimitive && itemsField.isString) {
+                val arrayJson = itemsField.jsonPrimitive.content
+                val arr = json.parseToJsonElement(arrayJson)
+                if (arr is JsonArray) {
+                    val recovered = arr.map { json.decodeFromJsonElement(BreakdownItemDto.serializer(), it) }
+                    logs.w(TAG, "RECOVERED breakdown items from stringified array (Claude tool-use quirk)")
+                    return recovered.map { it.toDomain() }
+                }
+            }
+        }
+        return null
+    }
+
+    private fun parseExamples(phrase: String, rawText: String): Result<PhraseExamples> = runCatching {
+        val examples = parseExamplesList(rawText)
+            ?: throw IllegalStateException("Examples parsowanie nieudane")
+        if (examples.isEmpty()) throw IllegalStateException("Examples bez przykładów")
+        PhraseExamples(phrase = phrase, examples = examples)
+    }
+
+    private fun parseExamplesList(rawText: String): List<Example>? {
+        runCatching {
+            return json.decodeFromString<ExamplesDto>(rawText).examples.map { it.toDomain() }
+        }
+        runCatching {
+            val root = json.parseToJsonElement(rawText)
+            if (root !is JsonObject) return null
+            val field = root["examples"] ?: return null
+            if (field is JsonPrimitive && field.isString) {
+                val arr = json.parseToJsonElement(field.jsonPrimitive.content)
+                if (arr is JsonArray) {
+                    val recovered = arr.map { json.decodeFromJsonElement(ExampleDto.serializer(), it) }
+                    logs.w(TAG, "RECOVERED examples from stringified array")
+                    return recovered.map { it.toDomain() }
+                }
+            }
+        }
+        return null
     }
 
     companion object {
-        // v2: prompts switched to English + standalone function-word skipping rule.
-        private const val CACHE_VERSION = "v2"
+        // v3: explicit "array not string" reminders + tool description update.
+        private const val CACHE_VERSION = "v3"
         private const val TAG = "LLM"
     }
 }
