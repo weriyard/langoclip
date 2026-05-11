@@ -64,7 +64,9 @@ class ActionRunner(
         val showPartialText = action == Action.TRANSLATE
         val streamBreakdown = action == Action.EXPLAIN_SENTENCE
         val builder = StringBuilder()
-        val breakdownParser = if (streamBreakdown) StreamingBreakdownParser(json) else null
+        val breakdownParser = if (streamBreakdown) {
+            StreamingArrayParser(json, "items", BreakdownItemDto.serializer())
+        } else null
         var lastBreakdownEmitted = 0
         var deltaCount = 0
         val startedAt = System.currentTimeMillis()
@@ -79,7 +81,7 @@ class ActionRunner(
                 if (showPartialText) {
                     emit(ActionState.Loading(action, partialText = builder.toString()))
                 } else if (breakdownParser != null) {
-                    val items = breakdownParser.extractItems(builder.toString())
+                    val items = breakdownParser.extract(builder.toString()).map { it.toDomain() }
                     if (items.size > lastBreakdownEmitted) {
                         lastBreakdownEmitted = items.size
                         emit(ActionState.Loading(action, partialBreakdown = items))
@@ -117,18 +119,16 @@ class ActionRunner(
         }
     }
 
-    suspend fun runExamples(phrase: String, variant: Int = 0): Result<PhraseExamples> {
+    fun runExamplesStreaming(phrase: String, variant: Int = 0): Flow<com.floatingclipboard.ui.ExamplesState> = flow {
         if (phrase.isBlank()) {
-            return Result.failure(IllegalArgumentException("Fraza jest pusta"))
+            emit(com.floatingclipboard.ui.ExamplesState.Error("Fraza jest pusta"))
+            return@flow
         }
         val settings = settingsRepository.settings.first()
         val systemPrompt = prompts.render(
             "phrase_examples.md",
             mapOf("phrase" to phrase, "targetLanguage" to settings.targetLanguage),
         )
-        // variant zmienia klucz cache (różne sety przykładów dla tej samej frazy są niezależnie
-        // cache'owane). Doklejamy też do user promptu w wariantach > 0 prośbę o NOWE zdania,
-        // żeby model nie zwrócił tych samych co poprzednio.
         val userPrompt = if (variant == 0) phrase else
             "$phrase\n\n(Wygeneruj ${variant + 1}. zestaw — INNE zdania niż wcześniej, inne konteksty.)"
         val key = LlmCache.keyFor(
@@ -138,37 +138,67 @@ class ActionRunner(
             phrase,
         )
 
-        cache.get(key)?.let { rawCached ->
-            val result = parseExamples(phrase, rawCached)
-            if (result.isSuccess) {
+        val cached = cache.get(key)
+        if (cached != null) {
+            val parsed = parseExamples(phrase, cached)
+            if (parsed.isSuccess) {
                 logs.d(TAG, "CACHE HIT examples phrase='${phrase.take(40)}' variant=$variant")
-                return result
+                emit(com.floatingclipboard.ui.ExamplesState.Success(parsed.getOrThrow(), variant))
+                return@flow
             }
             logs.w(TAG, "CACHE_CORRUPT examples; evicting key")
             cache.invalidate(key)
-            // Spadamy do live calla.
         }
 
         logs.d(TAG, "CALL  examples ${settings.provider.name}/${settings.activeModel} phrase='${phrase.take(40)}' variant=$variant")
+        emit(com.floatingclipboard.ui.ExamplesState.Loading())
         val client = createLlmClient(settings)
-        return client.complete(systemPrompt, userPrompt, EXAMPLES_SCHEMA)
-            .fold(
-                onSuccess = { rawText ->
-                    parseExamples(phrase, rawText).also { result ->
-                        if (result.isSuccess) {
-                            cache.put(key, rawText)
-                        } else {
-                            logs.e(TAG, "PARSE_ERROR examples: ${result.exceptionOrNull()?.message}")
-                            logs.e(TAG, "RAW(prefix): ${rawText.take(400)}")
-                            logs.saveLastRaw("EXAMPLES @ ${settings.provider.name}/${settings.activeModel}", rawText)
-                        }
-                    }
+        val parser = StreamingArrayParser(json, "examples", ExampleDto.serializer())
+        val builder = StringBuilder()
+        var lastEmitted = 0
+        var deltaCount = 0
+        val startedAt = System.currentTimeMillis()
+
+        try {
+            client.stream(systemPrompt, userPrompt, EXAMPLES_SCHEMA).collect { delta ->
+                deltaCount++
+                if (deltaCount == 1) {
+                    logs.d(TAG, "TTFT  examples ${System.currentTimeMillis() - startedAt}ms")
+                }
+                builder.append(delta)
+                val partial = parser.extract(builder.toString()).map { it.toDomain() }
+                if (partial.size > lastEmitted) {
+                    lastEmitted = partial.size
+                    emit(com.floatingclipboard.ui.ExamplesState.Loading(partial))
+                }
+            }
+            logs.d(TAG, "DONE  examples ${System.currentTimeMillis() - startedAt}ms, $deltaCount deltas, ${builder.length} chars")
+            val full = builder.toString()
+            if (full.isBlank()) {
+                emit(com.floatingclipboard.ui.ExamplesState.Error("Pusta odpowiedź"))
+                return@flow
+            }
+            parseExamples(phrase, full).fold(
+                onSuccess = {
+                    cache.put(key, full)
+                    emit(com.floatingclipboard.ui.ExamplesState.Success(it, variant))
                 },
-                onFailure = {
-                    logs.e(TAG, "LLM_ERROR examples: ${it.message}")
-                    Result.failure(it)
+                onFailure = { err ->
+                    logs.e(TAG, "PARSE_ERROR examples: ${err.message}")
+                    logs.e(TAG, "RAW(prefix): ${full.take(400)}")
+                    logs.saveLastRaw("EXAMPLES @ ${settings.provider.name}/${settings.activeModel}", full)
+                    emit(com.floatingclipboard.ui.ExamplesState.Error("Parse error: ${err.message}"))
                 },
             )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: LlmError) {
+            logs.e(TAG, "LLM_ERROR examples: ${e.message}")
+            emit(com.floatingclipboard.ui.ExamplesState.Error(e.message ?: "Nieznany błąd"))
+        } catch (e: Throwable) {
+            logs.e(TAG, "UNKNOWN_ERROR examples: ${e.message}")
+            emit(com.floatingclipboard.ui.ExamplesState.Error(e.message ?: "Nieznany błąd"))
+        }
     }
 
     private fun parseAction(action: Action, rawText: String): Result<ActionResult> = runCatching {
@@ -333,15 +363,26 @@ private fun ExampleDto.toDomain() = Example(
     usageNote = usageNote,
 )
 
-private class StreamingBreakdownParser(private val json: Json) {
-    private val itemsMarker = "\"items\":["
+/**
+ * Progressive parser dla strukturalnego output rosnącego tokenowo. Szuka markera
+ * `"<fieldName>":[`, potem liczy klamerki z poprawną obsługą stringów i escape'ów żeby
+ * wydobyć KOMPLETNE sub-obiekty z tablicy. Każdy kompletny obiekt próbuje zdeserializować
+ * przez podany [elementSerializer]; niepoprawne fragmenty (np. zbyt wcześnie odczytane)
+ * są ignorowane — wrócą gdy pełny obiekt zostanie zaakceptowany w kolejnej iteracji.
+ */
+private class StreamingArrayParser<T>(
+    private val json: Json,
+    fieldName: String,
+    private val elementSerializer: kotlinx.serialization.KSerializer<T>,
+) {
+    private val marker = "\"$fieldName\":["
 
-    fun extractItems(accumulated: String): List<BreakdownItem> {
-        val markerIndex = accumulated.indexOf(itemsMarker)
+    fun extract(accumulated: String): List<T> {
+        val markerIndex = accumulated.indexOf(marker)
         if (markerIndex < 0) return emptyList()
-        val content = accumulated.substring(markerIndex + itemsMarker.length)
+        val content = accumulated.substring(markerIndex + marker.length)
 
-        val items = mutableListOf<BreakdownItem>()
+        val items = mutableListOf<T>()
         var depth = 0
         var start = -1
         var inString = false
@@ -363,8 +404,7 @@ private class StreamingBreakdownParser(private val json: Json) {
                     if (depth == 0 && start >= 0) {
                         val objJson = content.substring(start, i + 1)
                         runCatching {
-                            val dto = json.decodeFromString<BreakdownItemDto>(objJson)
-                            items.add(dto.toDomain())
+                            items.add(json.decodeFromString(elementSerializer, objJson))
                         }
                         start = -1
                     }

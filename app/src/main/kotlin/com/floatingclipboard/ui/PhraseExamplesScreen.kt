@@ -122,12 +122,25 @@ fun PhraseExamplesScreen(
                 )
 
                 when (val s = state) {
-                    is ExamplesState.Loading -> Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    is ExamplesState.Loading -> Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                        Text("Generuję przykłady…", fontFamily = FontFamily.SansSerif)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            Text(
+                                text = if (s.partial.isEmpty()) "Generuję przykłady…"
+                                else "Generuję przykłady… (${s.partial.size}/5)",
+                                fontFamily = FontFamily.SansSerif,
+                            )
+                        }
+                        // Karty pojawiają się jedna po drugiej w trakcie streamowania.
+                        s.partial.forEachIndexed { index, example ->
+                            ExampleItem(index = index + 1, example = example)
+                        }
                     }
 
                     is ExamplesState.Error -> Text(
