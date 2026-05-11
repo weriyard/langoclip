@@ -6,7 +6,7 @@ import com.floatingclipboard.actions.BreakdownItem
 import com.floatingclipboard.actions.Example
 import com.floatingclipboard.actions.PhraseExamples
 
-/** Stan akcji w Schowku (Translate) lub zakładce Explain. */
+/** Action state in the Paste tab (Translate) or the Explain tab. */
 sealed interface ActionState {
     data object Idle : ActionState
     data class Loading(
@@ -18,7 +18,7 @@ sealed interface ActionState {
     data class Error(val action: Action, val message: String) : ActionState
 }
 
-/** Stan w zakładce Examples. */
+/** State in the Examples tab. */
 sealed interface ExamplesState {
     data class Loading(val partial: List<Example> = emptyList()) : ExamplesState
     data class Success(val data: PhraseExamples, val variant: Int) : ExamplesState

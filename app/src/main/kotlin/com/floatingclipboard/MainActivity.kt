@@ -68,10 +68,10 @@ class MainActivity : ComponentActivity() {
 
     private val notificationLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* ignored — bez notyfikacji service też wystartuje */ }
+    ) { /* ignored — the service starts even without notifications */ }
 
-    // Mutable state pod incoming share/process-text intents. Compose obserwuje przez
-    // androidx.compose.runtime.mutableStateOf — VM zżera content przez LaunchedEffect.
+    // Mutable state for incoming share/process-text intents. Compose observes via
+    // androidx.compose.runtime.mutableStateOf — VM consumes the content through LaunchedEffect.
     private val sharedTextState = androidx.compose.runtime.mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,13 +96,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // singleTop launchMode → ponowne uruchomienie z innego share trafia tu.
+        // singleTop launchMode → re-launches from another share land here.
         consumeIncomingText(intent)
     }
 
     /**
-     * Wyciąga tekst z [Intent.ACTION_SEND] (Share sheet) lub [Intent.ACTION_PROCESS_TEXT]
-     * (zaznaczenie tekstu → menu kontekstowe). Sets state — Compose pickuje przez LaunchedEffect.
+     * Extracts text from [Intent.ACTION_SEND] (Share sheet) or [Intent.ACTION_PROCESS_TEXT]
+     * (text selection → context menu). Sets state — Compose picks it up via LaunchedEffect.
      */
     private fun consumeIncomingText(intent: Intent?) {
         intent ?: return
@@ -173,12 +173,12 @@ private fun AppRoot(
 ) {
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
 
-    // Pickujemy incoming text z share/process-text intents, raz na każdą wartość.
+    // Pick up incoming text from share/process-text intents, once per value.
     val sharedText = sharedTextState.value
     LaunchedEffect(sharedText) {
         if (!sharedText.isNullOrBlank()) {
             viewModel.receiveSharedText(sharedText)
-            // Closing overlay if open (np. Settings) żeby user widział wynik.
+            // Close overlay if open (e.g. Settings) so the user sees the result.
             overlay = Overlay.None
             sharedTextState.value = null
         }
@@ -283,9 +283,9 @@ private fun TabbedShell(
                     tab = t,
                     onShowExamples = viewModel::showExamplesAsNewTab,
                     onRetry = {
-                        // Retry: ponów explain dla tego samego sourceText'u jako nowa zakładka.
-                        // Zamiast nadpisywać current state — wygodniej dla usera (zachowuje błąd).
-                        // Można też w przyszłości dodać re-fetch w miejscu.
+                        // Retry: re-run explain for the same sourceText as a new tab.
+                        // Instead of overwriting current state — more convenient for the user (keeps the error).
+                        // Could also add in-place re-fetch in the future.
                     },
                 )
                 is DataTab.Examples -> ExamplesTabContent(

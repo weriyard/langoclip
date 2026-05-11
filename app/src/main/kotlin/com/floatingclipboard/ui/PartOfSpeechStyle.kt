@@ -5,8 +5,8 @@ import androidx.compose.ui.graphics.Color
 import com.floatingclipboard.actions.PartOfSpeech
 
 /**
- * Stała mapa kolor per część mowy. Tony Material 500/700 — czytelne i na light, i na dark theme.
- * Każda część zdania o tej samej części mowy będzie miała ten sam kolor w całym wyniku.
+ * Constant color-per-part-of-speech map. Material 500/700 tones — readable on both light and dark themes.
+ * Every sentence fragment with the same part of speech will share the same color throughout the result.
  */
 @Composable
 fun colorForPartOfSpeech(pos: PartOfSpeech): Color = when (pos) {

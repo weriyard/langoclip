@@ -39,8 +39,8 @@ import com.floatingclipboard.actions.ActionResult
 import com.floatingclipboard.data.Tab
 
 /**
- * Widok zakładki Schowek (pierwsza, niezamykalna). Edycja tekstu + akcje + Translate inline.
- * Wytłumacz NIE wyświetla wyniku tutaj — tworzy nową zakładkę przez [onExplain].
+ * Paste tab view (first, non-closeable). Text editing + actions + inline Translate.
+ * Explain does NOT show its result here — it creates a new tab via [onExplain].
  */
 @Composable
 fun PasteTabContent(
@@ -54,8 +54,8 @@ fun PasteTabContent(
     onClearResult: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Auto-fill schowkiem TYLKO gdy pole jest puste — nie nadpisuje istniejącego stanu np. po
-    // powrocie z innej zakładki.
+    // Auto-fill from the clipboard ONLY when the field is empty — doesn't overwrite existing
+    // state, e.g. after returning from another tab.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -129,8 +129,8 @@ fun PasteTabContent(
 }
 
 /**
- * Renderuje TYLKO wyniki Translate (inline w Schowku). Dla Explain wraca Unit — wynik
- * jest w osobnej zakładce, nie tutaj.
+ * Renders ONLY the Translate results (inline in the Paste tab). For Explain returns Unit — the
+ * result lives in a separate tab, not here.
  */
 @Composable
 private fun TranslatePanel(

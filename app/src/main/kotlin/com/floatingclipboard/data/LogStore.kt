@@ -31,11 +31,11 @@ data class LogEntry(
 }
 
 /**
- * Singleton in-app log store. Trzyma ostatnie [MAX_ENTRIES] wpisów w pamięci (StateFlow dla UI),
- * dodatkowo appenduje do `logs.txt` w filesDir żeby przeżyło killa procesu (po wypchnięciu z
- * logcata przez systemowy spam — typowe na Samsung One UI). Rotacja gdy plik > [MAX_FILE_BYTES].
+ * Singleton in-app log store. Keeps the last [MAX_ENTRIES] entries in memory (StateFlow for UI),
+ * and also appends to `logs.txt` in filesDir so they survive a process kill (after being pushed
+ * out of logcat by system spam — typical on Samsung One UI). Rotated when the file > [MAX_FILE_BYTES].
  *
- * Dostęp do entries jest thread-safe; I/O na disk w SupervisorJob coroutine scope, fire-and-forget.
+ * Access to entries is thread-safe; disk I/O runs in a SupervisorJob coroutine scope, fire-and-forget.
  */
 class LogStore private constructor(context: Context) {
 
@@ -52,7 +52,7 @@ class LogStore private constructor(context: Context) {
     fun log(level: LogLevel, tag: String, message: String) {
         val entry = LogEntry(System.currentTimeMillis(), level, tag, message)
         _entries.value = (_entries.value + entry).takeLast(MAX_ENTRIES)
-        // Mirror do Logcata żeby Android Studio też widział, gdy podpięte.
+        // Mirror to Logcat so Android Studio sees it when attached.
         when (level) {
             LogLevel.D -> Log.d(tag, message)
             LogLevel.I -> Log.i(tag, message)
@@ -76,11 +76,11 @@ class LogStore private constructor(context: Context) {
         }
     }
 
-    /** Cały bufor jako tekst, np. do przekazania przez share intent. */
+    /** The whole buffer as text, e.g. to pass through a share intent. */
     fun snapshot(): String =
         _entries.value.joinToString("\n") { it.formatted() }
 
-    /** Zapisuje PEŁNY raw response z LLM do osobnego pliku — do diagnozy parse errorów. */
+    /** Saves the FULL raw response from the LLM to a separate file — for parse error diagnostics. */
     fun saveLastRaw(label: String, content: String) {
         ioScope.launch {
             fileMutex.withLock {
@@ -111,7 +111,7 @@ class LogStore private constructor(context: Context) {
 
     private fun loadFromDisk(): List<LogEntry> = runCatching {
         if (!file.exists()) return@runCatching emptyList()
-        // Parsujemy ostatnie linie z pliku; jeśli format się rozjedzie, ignorujemy linijkę.
+        // Parse the last lines of the file; if the format drifts, skip the line.
         file.readLines()
             .takeLast(MAX_ENTRIES)
             .mapNotNull(::parseLine)
@@ -126,8 +126,8 @@ class LogStore private constructor(context: Context) {
             val level = LogLevel.valueOf(parts[1])
             val tag = parts[2].removeSuffix(":")
             val message = parts[3]
-            // Czas tylko dla wyświetlenia — nie znamy daty, więc używamy "teraz" dla timestamp porządkowania;
-            // wystarczy do display, real timestamp już zapisany w stringu.
+            // Time is for display only — we don't know the date, so use "now" as the ordering timestamp;
+            // sufficient for display, the real timestamp is already stored in the string.
             val timestampMs = parseTimeMs(timePart) ?: System.currentTimeMillis()
             LogEntry(timestampMs, level, tag, message)
         }.getOrNull()
@@ -139,7 +139,7 @@ class LogStore private constructor(context: Context) {
 
     companion object {
         private const val MAX_ENTRIES = 500
-        private const val MAX_FILE_BYTES = 512L * 1024  // 512KB → rotacja do .prev
+        private const val MAX_FILE_BYTES = 512L * 1024  // 512KB → rotate to .prev
 
         @Volatile
         private var instance: LogStore? = null

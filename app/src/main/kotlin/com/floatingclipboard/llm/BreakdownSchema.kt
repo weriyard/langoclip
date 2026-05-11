@@ -8,9 +8,9 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
 /**
- * Schema OpenAPI/Gemini wymuszająca strukturę odpowiedzi przy responseMimeType=application/json.
- * Gemini gwarantuje zwrócenie poprawnego JSON-a zgodnego z tą strukturą — nie trzeba parsować
- * markdownu, model nie może odmówić formatu.
+ * OpenAPI/Gemini schema enforcing the response structure when responseMimeType=application/json.
+ * Gemini guarantees returning valid JSON conforming to this structure — no need to parse
+ * markdown, the model cannot refuse the format.
  */
 internal val BREAKDOWN_SCHEMA: JsonElement = buildJsonObject {
     put("type", "OBJECT")

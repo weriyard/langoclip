@@ -18,8 +18,8 @@ import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 
 /**
- * Foreground service trzymający przy życiu pływającą ikonę.
- * Klik w ikonę uruchamia MainActivity, drag pozwala ją przesuwać.
+ * Foreground service keeping the floating bubble alive.
+ * Tapping the bubble launches MainActivity, drag lets you move it.
  */
 class BubbleService : Service() {
 

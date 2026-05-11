@@ -6,7 +6,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-/** Współdzielony klient HTTP dla wszystkich providerów. ContentNegotiation tolerancyjne na nieznane pola. */
+/** Shared HTTP client for all providers. ContentNegotiation tolerant of unknown fields. */
 internal val llmHttpClient: HttpClient by lazy {
     HttpClient(Android) {
         install(ContentNegotiation) {
