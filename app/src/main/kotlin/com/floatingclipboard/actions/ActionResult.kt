@@ -2,7 +2,10 @@ package com.floatingclipboard.actions
 
 sealed interface ActionResult {
     data class Text(val text: String) : ActionResult
-    data class Breakdown(val items: List<BreakdownItem>) : ActionResult
+    data class Breakdown(
+        val items: List<BreakdownItem>,
+        val fullTranslation: String = "",
+    ) : ActionResult
 }
 
 enum class PartOfSpeech {

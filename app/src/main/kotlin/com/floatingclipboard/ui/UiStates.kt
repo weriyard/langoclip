@@ -13,6 +13,7 @@ sealed interface ActionState {
         val action: Action,
         val partialText: String? = null,
         val partialBreakdown: List<BreakdownItem>? = null,
+        val partialFullTranslation: String? = null,
     ) : ActionState
     data class Success(val action: Action, val result: ActionResult) : ActionState
     data class Error(val action: Action, val message: String) : ActionState
