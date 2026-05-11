@@ -1,6 +1,7 @@
 package com.floatingclipboard.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -26,6 +27,7 @@ data class Settings(
     val isUsingDefaultAnthropicKey: Boolean,
     val anthropicModel: String,
     val targetLanguage: String,
+    val autoStartBubble: Boolean,
 ) {
     val activeApiKey: String
         get() = when (provider) {
@@ -89,6 +91,7 @@ class SettingsRepository(context: Context) {
             isUsingDefaultAnthropicKey = anthropicOverride == null,
             anthropicModel = prefs[PREF_ANTHROPIC_MODEL] ?: Provider.ANTHROPIC.defaultModel,
             targetLanguage = prefs[PREF_TARGET_LANG] ?: DEFAULT_TARGET_LANGUAGE,
+            autoStartBubble = prefs[PREF_AUTO_START_BUBBLE] ?: true,
         )
     }
 
@@ -127,6 +130,10 @@ class SettingsRepository(context: Context) {
         appContext.settingsDataStore.edit { it[PREF_TARGET_LANG] = lang }
     }
 
+    suspend fun setAutoStartBubble(enabled: Boolean) {
+        appContext.settingsDataStore.edit { it[PREF_AUTO_START_BUBBLE] = enabled }
+    }
+
     companion object {
         const val DEFAULT_TARGET_LANGUAGE = "polski"
 
@@ -139,5 +146,6 @@ class SettingsRepository(context: Context) {
         private val PREF_OPENAI_MODEL = stringPreferencesKey("openai_model")
         private val PREF_ANTHROPIC_MODEL = stringPreferencesKey("anthropic_model")
         private val PREF_TARGET_LANG = stringPreferencesKey("target_language")
+        private val PREF_AUTO_START_BUBBLE = booleanPreferencesKey("auto_start_bubble")
     }
 }
