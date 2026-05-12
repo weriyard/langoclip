@@ -26,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -43,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.floatingclipboard.R
 import com.floatingclipboard.actions.Example
+import com.floatingclipboard.actions.WordSense
 import com.floatingclipboard.data.Tab
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +80,20 @@ fun ExamplesTabContent(
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
+                        // Base form from LLM (e.g. "drew on" → "draw on") — shown when available and different
+                        val baseForm = when (val s = tab.sensesState) {
+                            is SensesState.Success -> s.baseForm
+                            is SensesState.Loading -> s.baseForm
+                            else -> null
+                        }
+                        if (!baseForm.isNullOrBlank() && !baseForm.equals(tab.phrase, ignoreCase = true)) {
+                            Text(
+                                text = "→ $baseForm",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontFamily = FontFamily.SansSerif,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            )
+                        }
                         if (tab.translation.isNotBlank()) {
                             Text(
                                 text = tab.translation,
@@ -101,6 +117,8 @@ fun ExamplesTabContent(
                     )
                 }
             }
+            HorizontalDivider()
+            SensesSection(tab.sensesState)
             HorizontalDivider()
             Text(
                 text = stringResource(R.string.examples_generate_hint),
@@ -144,6 +162,100 @@ fun ExamplesTabContent(
                             ExampleItem(index = index + 1, example = example)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SensesSection(state: SensesState) {
+    when (state) {
+        is SensesState.Idle -> Unit
+        is SensesState.Loading -> {
+            val senses = state.partial
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                    Text(
+                        text = stringResource(R.string.senses_loading),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (senses.isNotEmpty()) SensesList(senses)
+            }
+        }
+        is SensesState.Success -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = stringResource(R.string.senses_section_title),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SensesList(state.senses)
+        }
+        is SensesState.Error -> Unit  // silent — senses are supplementary
+    }
+}
+
+@Composable
+private fun SensesList(senses: List<WordSense>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        senses.forEach { sense -> SenseRow(sense) }
+    }
+}
+
+@Composable
+private fun SenseRow(sense: WordSense) {
+    val color = colorForPartOfSpeech(sense.partOfSpeech)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Surface(
+                color = color.copy(alpha = 0.15f),
+                shape = MaterialTheme.shapes.extraSmall,
+            ) {
+                Text(
+                    text = sense.partOfSpeech.label.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = color,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.SansSerif,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+            Text(
+                text = sense.meaning,
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = FontFamily.SansSerif,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (sense.example.isNotBlank()) {
+            Column(
+                modifier = Modifier.padding(start = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                Text(
+                    text = "\"${sense.example}\"",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic,
+                    fontFamily = FontFamily.SansSerif,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (sense.exampleTranslation.isNotBlank()) {
+                    Text(
+                        text = sense.exampleTranslation,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.SansSerif,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

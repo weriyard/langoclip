@@ -5,21 +5,28 @@ import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
 import com.floatingclipboard.llm.BREAKDOWN_SCHEMA
+import com.floatingclipboard.llm.DictionaryClient
 import com.floatingclipboard.llm.EXAMPLES_SCHEMA
 import com.floatingclipboard.llm.LlmError
+import com.floatingclipboard.llm.LlmTask
+import com.floatingclipboard.llm.ModelRouter
+import com.floatingclipboard.llm.WORD_SENSES_SCHEMA
 import com.floatingclipboard.llm.createLlmClient
 import com.floatingclipboard.ui.ActionState
+import com.floatingclipboard.ui.SensesState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
 
 class ActionRunner(
     private val settingsRepository: SettingsRepository,
@@ -38,17 +45,18 @@ class ActionRunner(
             return@flow
         }
         val settings = settingsRepository.settings.first()
+        val model = ModelRouter.modelFor(action.task, settings)
         val systemPrompt = prompts.render(
             action.promptFile,
             mapOf("targetLanguage" to settings.targetLanguage),
         )
-        val key = LlmCache.keyFor(CACHE_VERSION, "${settings.provider.name}:${settings.activeModel}", systemPrompt, userText)
+        val key = LlmCache.keyFor(CACHE_VERSION, "${settings.provider.name}:$model", systemPrompt, userText)
 
         val cached = cache.get(key)
         if (cached != null) {
             val parsed = parseAction(action, cached)
             if (parsed.isSuccess) {
-                logs.d(TAG, "CACHE HIT ${settings.provider.name}/${settings.activeModel} action=$action")
+                logs.d(TAG, "CACHE HIT ${settings.provider.name}/$model action=$action")
                 emit(ActionState.Success(action, parsed.getOrThrow()))
                 return@flow
             }
@@ -57,9 +65,9 @@ class ActionRunner(
             cache.invalidate(key)
         }
 
-        logs.d(TAG, "CALL  ${settings.provider.name}/${settings.activeModel} action=$action textLen=${userText.length}")
+        logs.d(TAG, "CALL  ${settings.provider.name}/$model action=$action textLen=${userText.length}")
         emit(ActionState.Loading(action))
-        val client = createLlmClient(settings)
+        val client = createLlmClient(settings, model)
         val schema = if (action == Action.EXPLAIN_SENTENCE) BREAKDOWN_SCHEMA else null
         val showPartialText = action == Action.TRANSLATE
         val streamBreakdown = action == Action.EXPLAIN_SENTENCE
@@ -135,15 +143,18 @@ class ActionRunner(
             return@flow
         }
         val settings = settingsRepository.settings.first()
+        val model = ModelRouter.modelFor(LlmTask.PHRASE_EXAMPLES, settings)
         val systemPrompt = prompts.render(
             "phrase_examples.md",
             mapOf("phrase" to phrase, "targetLanguage" to settings.targetLanguage),
         )
-        val userPrompt = if (variant == 0) phrase else
-            "$phrase\n\n(Wygeneruj ${variant + 1}. zestaw — INNE zdania niż wcześniej, inne konteksty.)"
+        val userPrompt = if (variant == 0) phrase else {
+            val theme = CONTEXT_THEMES[(variant - 1) % CONTEXT_THEMES.size]
+            "$phrase\n\n(Set ${variant + 1} — generate COMPLETELY DIFFERENT sentences from any previous sets. $theme. Vary tenses and sentence structures.)"
+        }
         val key = LlmCache.keyFor(
             CACHE_VERSION,
-            "${settings.provider.name}:${settings.activeModel}:v$variant",
+            "${settings.provider.name}:$model:v$variant",
             systemPrompt,
             phrase,
         )
@@ -160,9 +171,9 @@ class ActionRunner(
             cache.invalidate(key)
         }
 
-        logs.d(TAG, "CALL  examples ${settings.provider.name}/${settings.activeModel} phrase='${phrase.take(40)}' variant=$variant")
+        logs.d(TAG, "CALL  examples ${settings.provider.name}/$model phrase='${phrase.take(40)}' variant=$variant")
         emit(com.floatingclipboard.ui.ExamplesState.Loading())
-        val client = createLlmClient(settings)
+        val client = createLlmClient(settings, model)
         val parser = StreamingArrayParser(json, "examples", ExampleDto.serializer())
         val builder = StringBuilder()
         var lastEmitted = 0
@@ -209,6 +220,120 @@ class ActionRunner(
             logs.e(TAG, "UNKNOWN_ERROR examples: ${e.message}")
             emit(com.floatingclipboard.ui.ExamplesState.Error(e.message ?: "Nieznany błąd"))
         }
+    }
+
+    fun runSensesStreaming(phrase: String, context: String): Flow<SensesState> = flow {
+        if (phrase.isBlank()) {
+            emit(SensesState.Error("Fraza jest pusta"))
+            return@flow
+        }
+        val settings = settingsRepository.settings.first()
+
+        // Free Dictionary API — single words only, no API key, Wiktionary-backed.
+        val dictKey = LlmCache.keyFor(CACHE_VERSION, "DICTIONARY", "", phrase.trim().lowercase())
+        val dictCached = cache.get(dictKey)
+        if (dictCached != null) {
+            val parsed = parseSenses(dictCached)
+            if (parsed.isSuccess) {
+                logs.d(TAG, "CACHE HIT dict senses phrase='${phrase.take(40)}'")
+                val (baseForm, senses) = parsed.getOrThrow()
+                emit(SensesState.Success(senses, baseForm))
+                return@flow
+            }
+            cache.invalidate(dictKey)
+        }
+        val dictResult = DictionaryClient().lookup(phrase)
+        if (dictResult != null) {
+            logs.d(TAG, "DICT HIT senses phrase='${phrase.take(40)}' senses=${dictResult.senses.size}")
+            val dto = SensesResponseDto(
+                baseForm = dictResult.baseForm,
+                senses = dictResult.senses.map { s ->
+                    SenseDto(
+                        partOfSpeech = s.partOfSpeech.name,
+                        meaning = s.meaning,
+                        example = s.example,
+                        exampleTranslation = s.exampleTranslation,
+                    )
+                },
+            )
+            cache.put(dictKey, json.encodeToString(dto))
+            emit(SensesState.Success(dictResult.senses, dictResult.baseForm))
+            return@flow
+        }
+
+        // Dictionary miss (multi-word phrase or not in Wiktionary) → fall through to LLM.
+        val sensesModel = ModelRouter.modelFor(LlmTask.WORD_SENSES, settings)
+        val systemPrompt = prompts.render(
+            "word_senses.md",
+            mapOf(
+                "phrase" to phrase,
+                "context" to context.ifBlank { phrase },
+                "targetLanguage" to settings.targetLanguage,
+            ),
+        )
+        val key = LlmCache.keyFor(CACHE_VERSION, "${settings.provider.name}:$sensesModel", systemPrompt, phrase)
+        val cached = cache.get(key)
+        if (cached != null) {
+            val parsed = parseSenses(cached)
+            if (parsed.isSuccess) {
+                logs.d(TAG, "CACHE HIT senses phrase='${phrase.take(40)}'")
+                val (baseForm, senses) = parsed.getOrThrow()
+                emit(SensesState.Success(senses, baseForm))
+                return@flow
+            }
+            cache.invalidate(key)
+        }
+
+        logs.d(TAG, "CALL  senses ${settings.provider.name}/$sensesModel phrase='${phrase.take(40)}'")
+        emit(SensesState.Loading())
+        val client = createLlmClient(settings, sensesModel)
+        val parser = StreamingArrayParser(json, "senses", SenseDto.serializer())
+        val builder = StringBuilder()
+        var lastEmitted = 0
+        var lastBaseForm: String? = null
+
+        try {
+            client.stream(systemPrompt, phrase, WORD_SENSES_SCHEMA).collect { delta ->
+                builder.append(delta)
+                val accumulator = builder.toString()
+                val partial = parser.extract(accumulator).map { it.toDomain() }
+                val baseForm = extractStringField(accumulator, "baseForm")
+                val changed = partial.size > lastEmitted || (baseForm != null && baseForm != lastBaseForm)
+                if (changed) {
+                    lastEmitted = partial.size
+                    if (baseForm != null) lastBaseForm = baseForm
+                    emit(SensesState.Loading(partial, lastBaseForm))
+                }
+            }
+            val full = builder.toString()
+            if (full.isBlank()) { emit(SensesState.Error("Pusta odpowiedź")); return@flow }
+            parseSenses(full).fold(
+                onSuccess = { (baseForm, senses) ->
+                    cache.put(key, full)
+                    emit(SensesState.Success(senses, baseForm))
+                },
+                onFailure = { err ->
+                    logs.e(TAG, "PARSE_ERROR senses: ${err.message}")
+                    emit(SensesState.Error("Parse error: ${err.message}"))
+                },
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: LlmError) {
+            logs.e(TAG, "LLM_ERROR senses: ${e.message}")
+            emit(SensesState.Error(e.message ?: "Nieznany błąd"))
+        } catch (e: Throwable) {
+            logs.e(TAG, "UNKNOWN_ERROR senses: ${e.message}")
+            emit(SensesState.Error(e.message ?: "Nieznany błąd"))
+        }
+    }
+
+    private fun parseSenses(rawText: String): Result<Pair<String, List<WordSense>>> = runCatching {
+        val cleaned = stripMarkdownWrap(rawText).trim()
+        val root = json.parseToJsonElement(cleaned)
+        val dto = json.decodeFromJsonElement(SensesResponseDto.serializer(), root)
+        if (dto.senses.isEmpty()) throw IllegalStateException("Senses: brak wyników")
+        Pair(dto.baseForm, dto.senses.map { it.toDomain() })
     }
 
     private fun parseAction(action: Action, rawText: String): Result<ActionResult> = runCatching {
@@ -361,10 +486,21 @@ class ActionRunner(
     }
 
     companion object {
-        // v6: EXPLAIN prompt reinforced with verbal constructions as a single item +
-        // explanation format including tense name and component breakdown.
-        private const val CACHE_VERSION = "v6"
+        // v7: Anthropic now uses toAnthropicSchema (keeps minItems/maxItems for examples);
+        // variant prompts use themed diversity; StreamingArrayParser handles whitespace in markers.
+        private const val CACHE_VERSION = "v7"
         private const val TAG = "LLM"
+
+        private val CONTEXT_THEMES = listOf(
+            "Focus on formal/academic contexts (essays, lectures, official documents)",
+            "Focus on casual everyday conversation (friends, texting, social media)",
+            "Focus on business and professional settings (emails, meetings, negotiations)",
+            "Focus on literature and creative writing (novels, poetry, storytelling)",
+            "Focus on news media and journalism (headlines, reports, commentary)",
+            "Focus on travel, culture, and lifestyle (blogs, travel writing, food)",
+            "Focus on historical or classical language (formal, old-fashioned usage)",
+            "Focus on technical or scientific language (research, documentation, manuals)",
+        )
     }
 }
 
@@ -408,6 +544,27 @@ private fun ExampleDto.toDomain() = Example(
     highlightedSpan = highlightedSpan,
 )
 
+@Serializable
+private data class SensesResponseDto(
+    val baseForm: String = "",
+    val senses: List<SenseDto> = emptyList(),
+)
+
+@Serializable
+private data class SenseDto(
+    val partOfSpeech: String = "OTHER",
+    val meaning: String = "",
+    val example: String = "",
+    val exampleTranslation: String = "",
+)
+
+private fun SenseDto.toDomain() = WordSense(
+    partOfSpeech = PartOfSpeech.parse(partOfSpeech),
+    meaning = meaning,
+    example = example,
+    exampleTranslation = exampleTranslation,
+)
+
 /**
  * Progressive parser for structured output that grows token-by-token. Looks for the marker
  * `"<fieldName>":[`, then counts braces with correct string and escape handling to extract
@@ -420,12 +577,19 @@ private class StreamingArrayParser<T>(
     fieldName: String,
     private val elementSerializer: kotlinx.serialization.KSerializer<T>,
 ) {
-    private val marker = "\"$fieldName\":["
+    private val keyMarker = "\"$fieldName\""
 
     fun extract(accumulated: String): List<T> {
-        val markerIndex = accumulated.indexOf(marker)
-        if (markerIndex < 0) return emptyList()
-        val content = accumulated.substring(markerIndex + marker.length)
+        // Find the JSON key, then scan for '[' tolerating optional whitespace after ':'
+        val keyIdx = accumulated.indexOf(keyMarker)
+        if (keyIdx < 0) return emptyList()
+        var i = keyIdx + keyMarker.length
+        while (i < accumulated.length && accumulated[i] != ':') i++
+        if (i >= accumulated.length) return emptyList()
+        i++ // skip ':'
+        while (i < accumulated.length && (accumulated[i] == ' ' || accumulated[i] == '\n' || accumulated[i] == '\r')) i++
+        if (i >= accumulated.length || accumulated[i] != '[') return emptyList()
+        val content = accumulated.substring(i + 1)
 
         val items = mutableListOf<T>()
         var depth = 0

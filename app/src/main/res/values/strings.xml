@@ -104,4 +104,8 @@
     <string name="shortcut_unsupported">Your launcher doesn\'t support pinning automatically — drag the icon from the app drawer manually.</string>
     <string name="share_logs_chooser">Share logs</string>
     <string name="show_hide_password">Show / Hide</string>
+
+    <!-- Word senses section in Examples tab -->
+    <string name="senses_section_title">Uses &amp; meanings</string>
+    <string name="senses_loading">Looking up senses…</string>
 </resources>

@@ -103,4 +103,8 @@
     <string name="shortcut_unsupported">Twój launcher nie wspiera automatycznego przypinania — przeciągnij ikonę z app drawera ręcznie.</string>
     <string name="share_logs_chooser">Udostępnij logi</string>
     <string name="show_hide_password">Pokaż / Ukryj</string>
+
+    <!-- Word senses section in Examples tab -->
+    <string name="senses_section_title">Znaczenia i zastosowania</string>
+    <string name="senses_loading">Wyszukuję znaczenia…</string>
 </resources>

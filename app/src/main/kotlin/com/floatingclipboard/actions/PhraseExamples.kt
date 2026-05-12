@@ -5,6 +5,13 @@ data class PhraseExamples(
     val examples: List<Example>,
 )
 
+data class WordSense(
+    val partOfSpeech: PartOfSpeech,
+    val meaning: String,
+    val example: String,
+    val exampleTranslation: String,
+)
+
 data class Example(
     val english: String,
     val translation: String,

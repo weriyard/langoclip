@@ -106,10 +106,11 @@ class TabsViewModel(
 
     // === Examples operations ===
 
-    /** Opens a new Examples tab for the given phrase + auto-fetches the first set. */
+    /** Opens a new Examples tab for the given phrase + auto-fetches examples and senses. */
     fun showExamplesAsNewTab(phrase: String, translation: String) {
         val tabId = tabs.openExamples(phrase, translation, ExamplesState.Loading())
         fetchExamples(tabId, phrase, variant = 0)
+        fetchSenses(tabId, phrase, translation)
     }
 
     /** Pull-to-refresh / regenerate for an existing Examples tab — bumps the variant counter. */
@@ -127,6 +128,15 @@ class TabsViewModel(
             }
         }
         tabs.putJob(tabId, job)
+    }
+
+    private fun fetchSenses(tabId: TabId, phrase: String, context: String) {
+        viewModelScope.launch {
+            runner.runSensesStreaming(phrase, context).collect { newState ->
+                tabs.updateExamples(tabId) { it.copy(sensesState = newState) }
+            }
+        }
+        // Not stored in jobs — senses aren't cancelled on swipe-to-refresh
     }
 
     companion object {

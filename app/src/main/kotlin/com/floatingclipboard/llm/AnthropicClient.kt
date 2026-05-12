@@ -122,9 +122,10 @@ class AnthropicClient(
         messages = listOf(AnthropicMessage(role = "user", content = userPrompt)),
         maxTokens = MAX_TOKENS,
         stream = stream,
-        // GA structured outputs — schema constraint at the tokenization level. Reuse OpenAI strict
-        // converter since the requirements are identical: lowercase types, additionalProperties: false,
-        // no propertyOrdering / minItems / maxItems.
+        // GA structured outputs — schema constraint at the tokenization level.
+        // Uses toOpenAiStrictSchema: lowercase types + additionalProperties:false (both required by
+        // Anthropic) + strips minItems/maxItems (Anthropic only supports minItems 0 or 1).
+        // Count enforcement (exactly 5 examples) falls back to the system prompt.
         outputConfig = jsonSchema?.let {
             AnthropicOutputConfig(
                 format = AnthropicOutputFormat(

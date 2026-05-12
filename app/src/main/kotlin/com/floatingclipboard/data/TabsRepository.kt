@@ -5,6 +5,7 @@ import com.floatingclipboard.actions.BreakdownItem
 import com.floatingclipboard.actions.Example
 import com.floatingclipboard.ui.ActionState
 import com.floatingclipboard.ui.ExamplesState
+import com.floatingclipboard.ui.SensesState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,6 +61,7 @@ sealed interface Tab {
         val translation: String,
         val variant: Int,
         val state: ExamplesState,
+        val sensesState: SensesState = SensesState.Idle,
     ) : Tab {
         override val label: String = phrase
         override val isCloseable: Boolean = true
@@ -117,7 +119,8 @@ class TabsRepository private constructor() {
     fun openExamples(phrase: String, translation: String, initial: ExamplesState): TabId {
         val id = TabId(idGen.getAndIncrement())
         val tab = Tab.Examples(
-            id = id, phrase = phrase, translation = translation, variant = 0, state = initial,
+            id = id, phrase = phrase, translation = translation, variant = 0,
+            state = initial, sensesState = SensesState.Loading(),
         )
         _tabs.update { it + tab }
         _selectedId.value = id

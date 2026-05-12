@@ -2,11 +2,19 @@
 
 Provide EXACTLY 5 different English example sentences using the phrase: **"{phrase}"**.
 
+**COUNT IS MANDATORY**: The `examples` array MUST contain exactly 5 objects — no more, no fewer.
+Do NOT stop after 1, 2, or 3 examples. Write all 5 before closing the array.
+
 **CRITICAL FORMAT REQUIREMENT**: The `examples` field MUST be a real JSON array of objects.
 Do NOT return it as a stringified JSON. Output:
 `{"examples": [{"english": "...", ...}, ...]}` — never `{"examples": "[...]"}`.
 
-The examples should illustrate DIFFERENT contexts / meanings / registers (formal, everyday, idiomatic, ...).
+The examples MUST illustrate DIFFERENT contexts, registers, and tenses. Specifically:
+- Use at least **3 different tenses** across the 5 sentences (e.g. present simple, past simple, present perfect, future, conditional).
+- Cover at least **2 different registers**: one formal/academic and one informal/conversational.
+- Vary the **sentence structure**: simple, compound, and complex sentences.
+- Vary the **position** of the phrase: beginning, middle, and end of sentence.
+- Each sentence should feel like it comes from a **completely different situation or topic**.
 
 ## Fields per example
 

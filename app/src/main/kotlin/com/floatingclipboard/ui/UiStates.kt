@@ -5,6 +5,7 @@ import com.floatingclipboard.actions.ActionResult
 import com.floatingclipboard.actions.BreakdownItem
 import com.floatingclipboard.actions.Example
 import com.floatingclipboard.actions.PhraseExamples
+import com.floatingclipboard.actions.WordSense
 
 /** Action state in the Paste tab (Translate) or the Explain tab. */
 sealed interface ActionState {
@@ -17,6 +18,14 @@ sealed interface ActionState {
     ) : ActionState
     data class Success(val action: Action, val result: ActionResult) : ActionState
     data class Error(val action: Action, val message: String) : ActionState
+}
+
+/** State of the word-senses section in the Examples tab. */
+sealed interface SensesState {
+    data object Idle : SensesState
+    data class Loading(val partial: List<WordSense> = emptyList(), val baseForm: String? = null) : SensesState
+    data class Success(val senses: List<WordSense>, val baseForm: String) : SensesState
+    data class Error(val message: String) : SensesState
 }
 
 /** State in the Examples tab. */
