@@ -82,6 +82,8 @@ fun SettingsScreen(
     var anthropicModel by remember(saved) { mutableStateOf(saved.anthropicModel) }
     var targetLanguage by remember(saved) { mutableStateOf(saved.targetLanguage) }
 
+    var hfToken by remember(saved) { mutableStateOf(saved.huggingFaceToken) }
+    var hfTokenVisible by remember { mutableStateOf(false) }
     var keyVisible by remember { mutableStateOf(false) }
     var providerMenuOpen by remember { mutableStateOf(false) }
     var modelMenuOpen by remember { mutableStateOf(false) }
@@ -413,6 +415,29 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            OutlinedTextField(
+                value = hfToken,
+                onValueChange = { hfToken = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("HuggingFace token") },
+                placeholder = { Text("hf_...") },
+                singleLine = true,
+                visualTransformation = if (hfTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { hfTokenVisible = !hfTokenVisible }) {
+                        Icon(
+                            if (hfTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = stringResource(R.string.show_hide_password),
+                        )
+                    }
+                },
+            )
+            if (hfToken != saved.huggingFaceToken) {
+                Button(
+                    onClick = { viewModel.setHuggingFaceToken(hfToken) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Zapisz token HuggingFace") }
+            }
             modelStates.forEach { state ->
                 LocalModelCard(
                     state = state,

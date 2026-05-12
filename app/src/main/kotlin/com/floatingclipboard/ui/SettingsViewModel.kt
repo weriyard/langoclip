@@ -35,6 +35,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
             targetLanguage = SettingsRepository.DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = true,
             appLocale = AppLocale.SYSTEM,
+            huggingFaceToken = "",
         ),
     )
 
@@ -77,6 +78,10 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
 
     fun resetAnthropicApiKey() {
         viewModelScope.launch { repo.setAnthropicApiKey("") }
+    }
+
+    fun setHuggingFaceToken(token: String) {
+        viewModelScope.launch { repo.setHuggingFaceToken(token) }
     }
 
     fun setAutoStartBubble(enabled: Boolean) {
