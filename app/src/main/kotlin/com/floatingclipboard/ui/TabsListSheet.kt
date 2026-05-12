@@ -141,6 +141,7 @@ private fun TabsListItem(
                 is Tab.Examples -> if (tab.variant > 0)
                     stringResource(R.string.tab_subtitle_examples_variant, tab.variant + 1)
                 else stringResource(R.string.tab_subtitle_examples)
+                is Tab.WordTranslation -> "Tłumaczenie słowa"
             }
             Text(
                 text = subtitle,
@@ -172,5 +173,6 @@ private fun iconFor(tab: Tab): ImageVector = when (tab) {
     is Tab.Paste -> Icons.Default.ContentPaste
     is Tab.Explain -> Icons.AutoMirrored.Filled.MenuBook
     is Tab.Examples -> Icons.Default.Translate
+    is Tab.WordTranslation -> Icons.Default.Translate
 }
 

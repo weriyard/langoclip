@@ -25,9 +25,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.TextFieldValue
 import com.floatingclipboard.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -50,12 +56,17 @@ fun PasteTabContent(
     onTextChange: (String) -> Unit,
     onTranslate: () -> Unit,
     onExplain: () -> Unit,
+    onTranslateWord: (word: String, sentence: String) -> Unit,
     onClearAll: () -> Unit,
     onClearResult: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Auto-fill from the clipboard ONLY when the field is empty — doesn't overwrite existing
-    // state, e.g. after returning from another tab.
+    var tfValue by remember { mutableStateOf(TextFieldValue(tab.text)) }
+    // Sync when tab.text changes externally (e.g. clipboard auto-fill resets text).
+    LaunchedEffect(tab.text) {
+        if (tfValue.text != tab.text) tfValue = TextFieldValue(tab.text)
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -67,6 +78,19 @@ fun PasteTabContent(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Derive selected single word from current selection (null if multi-word or no selection).
+    val selectedWord = remember(tfValue.selection, tfValue.text) {
+        val sel = tfValue.selection
+        if (sel.collapsed) null
+        else {
+            val s = tfValue.text.substring(
+                sel.start.coerceAtLeast(0),
+                sel.end.coerceAtMost(tfValue.text.length),
+            ).trim()
+            if (s.isNotBlank() && ' ' !in s) s else null
+        }
+    }
+
     Column(
         modifier = modifier
             .padding(16.dp)
@@ -76,8 +100,11 @@ fun PasteTabContent(
     ) {
         Text(stringResource(R.string.paste_title), style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
-            value = tab.text,
-            onValueChange = onTextChange,
+            value = tfValue,
+            onValueChange = { newValue ->
+                tfValue = newValue
+                if (newValue.text != tab.text) onTextChange(newValue.text)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 160.dp),
@@ -104,6 +131,11 @@ fun PasteTabContent(
             }
             Button(onClick = onExplain, enabled = canRun) {
                 Text(stringResource(R.string.action_explain))
+            }
+            if (selectedWord != null) {
+                Button(onClick = { onTranslateWord(selectedWord, tab.text) }) {
+                    Text("\"$selectedWord\"")
+                }
             }
             if (tab.actionState !is ActionState.Idle) {
                 IconButton(

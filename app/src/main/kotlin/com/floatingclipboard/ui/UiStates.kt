@@ -34,3 +34,10 @@ sealed interface ExamplesState {
     data class Success(val data: PhraseExamples, val variant: Int) : ExamplesState
     data class Error(val message: String) : ExamplesState
 }
+
+/** State for the WordTranslation tab (single-word orchestrator lookup). */
+sealed interface WordTranslationState {
+    data object Loading : WordTranslationState
+    data class Success(val result: com.floatingclipboard.translation.TranslationResult) : WordTranslationState
+    data class Error(val message: String) : WordTranslationState
+}

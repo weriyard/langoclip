@@ -47,6 +47,7 @@ import com.floatingclipboard.ui.SettingsScreen
 import com.floatingclipboard.ui.TabBar
 import com.floatingclipboard.ui.TabsListSheet
 import com.floatingclipboard.ui.TabsViewModel
+import com.floatingclipboard.ui.WordTranslationTabContent
 import com.floatingclipboard.ui.theme.AppTheme
 import com.floatingclipboard.R
 import kotlinx.coroutines.flow.first
@@ -274,6 +275,7 @@ private fun TabbedShell(
                     onTextChange = viewModel::setPasteText,
                     onTranslate = viewModel::translateInPaste,
                     onExplain = viewModel::explainAsNewTab,
+                    onTranslateWord = viewModel::translateWord,
                     onClearAll = {
                         viewModel.clearPaste()
                     },
@@ -291,6 +293,10 @@ private fun TabbedShell(
                 is DataTab.Examples -> ExamplesTabContent(
                     tab = t,
                     onRegenerate = { viewModel.regenerateExamples(t.id) },
+                )
+                is DataTab.WordTranslation -> WordTranslationTabContent(
+                    tab = t,
+                    onShowExamples = viewModel::showExamplesAsNewTab,
                 )
                 null -> Unit
             }

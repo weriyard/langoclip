@@ -17,6 +17,10 @@ import com.floatingclipboard.data.Tab
 import com.floatingclipboard.data.Tab.Companion.PASTE_ID
 import com.floatingclipboard.data.TabId
 import com.floatingclipboard.data.TabsRepository
+import com.floatingclipboard.data.lemma.LemmaDatabase
+import com.floatingclipboard.data.translation.TranslationDatabase
+import com.floatingclipboard.translation.Lemmatizer
+import com.floatingclipboard.translation.TranslationOrchestrator
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -32,6 +36,7 @@ import kotlinx.coroutines.launch
 class TabsViewModel(
     private val tabs: TabsRepository,
     private val runner: ActionRunner,
+    private val orchestrator: TranslationOrchestrator? = null,
 ) : ViewModel() {
 
     val tabsList: StateFlow<List<Tab>> = tabs.tabs
@@ -130,6 +135,24 @@ class TabsViewModel(
         tabs.putJob(tabId, job)
     }
 
+    /** Translates a single selected word using TranslationOrchestrator. Opens a new WordTranslation tab. */
+    fun translateWord(token: String, sentence: String) {
+        val orc = orchestrator ?: return
+        val trimmed = token.trim()
+        if (trimmed.isBlank()) return
+        val tabId = tabs.openWordTranslation(trimmed, sentence, WordTranslationState.Loading)
+        val job = viewModelScope.launch {
+            runCatching { orc.translate(trimmed, sentence) }
+                .onSuccess { result ->
+                    tabs.updateWordTranslation(tabId) { it.copy(state = WordTranslationState.Success(result)) }
+                }
+                .onFailure { e ->
+                    tabs.updateWordTranslation(tabId) { it.copy(state = WordTranslationState.Error(e.message ?: "Error")) }
+                }
+        }
+        tabs.putJob(tabId, job)
+    }
+
     private fun fetchSenses(tabId: TabId, phrase: String, context: String) {
         viewModelScope.launch {
             runner.runSensesStreaming(phrase, context).collect { newState ->
@@ -143,13 +166,21 @@ class TabsViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
+                val settingsRepo = SettingsRepository(app)
+                val lemmaDb = LemmaDatabase.getOptional(app)
+                val translationDb = TranslationDatabase.getInstance(app)
                 TabsViewModel(
                     tabs = TabsRepository.getInstance(),
                     runner = ActionRunner(
-                        SettingsRepository(app),
+                        settingsRepo,
                         PromptLoader(app),
                         LlmCache.getInstance(app),
                         LogStore.getInstance(app),
+                    ),
+                    orchestrator = TranslationOrchestrator(
+                        lemmatizer = Lemmatizer(lemmaDb),
+                        translationDao = translationDb.translationDao(),
+                        settingsRepo = settingsRepo,
                     ),
                 )
             }

@@ -6,6 +6,7 @@ import com.floatingclipboard.actions.Example
 import com.floatingclipboard.ui.ActionState
 import com.floatingclipboard.ui.ExamplesState
 import com.floatingclipboard.ui.SensesState
+import com.floatingclipboard.ui.WordTranslationState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +68,16 @@ sealed interface Tab {
         override val isCloseable: Boolean = true
     }
 
+    data class WordTranslation(
+        override val id: TabId,
+        val token: String,
+        val sentence: String,
+        val state: WordTranslationState,
+    ) : Tab {
+        override val label: String = token.take(LABEL_MAX)
+        override val isCloseable: Boolean = true
+    }
+
     companion object {
         val PASTE_ID = TabId(0)
         private const val LABEL_MAX = 25
@@ -125,6 +136,19 @@ class TabsRepository private constructor() {
         _tabs.update { it + tab }
         _selectedId.value = id
         return id
+    }
+
+    fun openWordTranslation(token: String, sentence: String, initial: WordTranslationState): TabId {
+        val id = TabId(idGen.getAndIncrement())
+        _tabs.update { it + Tab.WordTranslation(id = id, token = token, sentence = sentence, state = initial) }
+        _selectedId.value = id
+        return id
+    }
+
+    fun updateWordTranslation(id: TabId, transform: (Tab.WordTranslation) -> Tab.WordTranslation) {
+        _tabs.update { list ->
+            list.map { if (it is Tab.WordTranslation && it.id == id) transform(it) else it }
+        }
     }
 
     fun updateExplain(id: TabId, transform: (Tab.Explain) -> Tab.Explain) {
