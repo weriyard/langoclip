@@ -1,38 +1,73 @@
+@file:Suppress("DEPRECATION")
+
 package com.floatingclipboard.local
 
+import android.content.Context
+import com.floatingclipboard.download.ModelDownloadManager
+import com.floatingclipboard.download.TRANSLATION_MODELS
+import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import java.io.File
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 /**
- * LiteRT-LM inference client for on-device translation.
+ * On-device inference via MediaPipe tasks-genai.
  *
- * Thread safety: LiteRT interpreters are NOT thread-safe. All inference is
- * serialized through a single dedicated thread via [inferenceDispatcher].
+ * Thread safety: LlmInference is NOT thread-safe. All calls are serialized through
+ * [inferenceDispatcher] (single dedicated thread named "litert-inference").
  *
- * TODO: add dependency to build.gradle.kts when ready to wire up:
- *   implementation("com.google.ai.edge.litert:litert-lm:<version>")
- * Then replace the stub body with real LiteRT-LM SessionRunner calls.
+ * Lazy initialization: model is loaded on the first [translate] call, not in the constructor,
+ * because loading blocks for several seconds.
+ *
+ * [isAvailable] returns true only if the model file exists on disk — if the user hasn't
+ * downloaded any model yet, the orchestrator falls through to Haiku/Sonnet automatically.
  */
-class LiteRtModelClient(private val modelPath: String) : LocalModelClient {
+class LiteRtModelClient(
+    private val context: Context,
+    private val modelPath: String,
+) : LocalModelClient {
 
     private val inferenceDispatcher = Executors.newSingleThreadExecutor { r ->
         Thread(r, "litert-inference").also { it.isDaemon = true }
     }.asCoroutineDispatcher()
 
-    // TODO: initialize LiteRT-LM SessionRunner here
-    // private val session: SessionRunner = ...
+    // Accessed only from inferenceDispatcher — no synchronization needed.
+    private var llm: LlmInference? = null
 
-    override val isAvailable: Boolean = true
+    override val isAvailable: Boolean get() = File(modelPath).exists()
 
     override suspend fun translate(prompt: String): String? = withContext(inferenceDispatcher) {
-        // TODO: replace with real inference
-        // session.run(prompt)
-        throw NotImplementedError("LiteRT-LM not yet wired up — add litert-lm dependency")
+        if (!isAvailable) return@withContext null
+        runCatching {
+            ensureLlm().generateResponse(prompt)
+        }.getOrNull()
     }
 
     override fun close() {
-        // TODO: session.close()
         inferenceDispatcher.close()
+        llm?.close()
+        llm = null
+    }
+
+    private fun ensureLlm(): LlmInference = llm ?: run {
+        val options = LlmInference.LlmInferenceOptions.builder()
+            .setModelPath(modelPath)
+            .setMaxTokens(512)
+            .build()
+        LlmInference.createFromOptions(context, options).also { llm = it }
+    }
+
+    companion object {
+        /**
+         * Returns a [LiteRtModelClient] for the first downloaded translation model,
+         * or [NoopLocalModelClient] if none is downloaded yet.
+         */
+        fun firstAvailableOrNoop(context: Context): LocalModelClient {
+            val manager = ModelDownloadManager(context)
+            val model = TRANSLATION_MODELS.firstOrNull { manager.isDownloaded(it) }
+                ?: return NoopLocalModelClient
+            return LiteRtModelClient(context, manager.modelFile(model).absolutePath)
+        }
     }
 }

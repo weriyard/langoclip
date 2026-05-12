@@ -19,6 +19,7 @@ import com.floatingclipboard.data.TabId
 import com.floatingclipboard.data.TabsRepository
 import com.floatingclipboard.data.lemma.LemmaDatabase
 import com.floatingclipboard.data.translation.TranslationDatabase
+import com.floatingclipboard.local.LiteRtModelClient
 import com.floatingclipboard.translation.Lemmatizer
 import com.floatingclipboard.translation.TranslationOrchestrator
 import kotlinx.coroutines.flow.SharingStarted
@@ -181,6 +182,7 @@ class TabsViewModel(
                         lemmatizer = Lemmatizer(lemmaDb),
                         translationDao = translationDb.translationDao(),
                         settingsRepo = settingsRepo,
+                        localModel = LiteRtModelClient.firstAvailableOrNoop(app),
                     ),
                 )
             }

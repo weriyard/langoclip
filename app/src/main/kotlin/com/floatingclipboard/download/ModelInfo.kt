@@ -12,6 +12,15 @@ data class ModelInfo(
 
 val TRANSLATION_MODELS = listOf(
     ModelInfo(
+        id = "gemma3_1b",
+        displayName = "Gemma 3 1B — lekki, testowy pipeline",
+        huggingFaceRepo = "litert-community/Gemma3-1B-IT",
+        fileName = "gemma3-1b-it-int4.task",
+        downloadSizeMb = 529,
+        requiredRamGb = 1.5f,
+        requiredStorageGb = 0.6f,
+    ),
+    ModelInfo(
         id = "gemma4_e4b",
         displayName = "Gemma 4 E4B — najlepsza jakość",
         huggingFaceRepo = "litert-community/gemma-4-E4B-it-litert-lm",
