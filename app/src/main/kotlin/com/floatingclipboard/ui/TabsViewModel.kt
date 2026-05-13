@@ -183,6 +183,7 @@ class TabsViewModel(
                         translationDao = translationDb.translationDao(),
                         settingsRepo = settingsRepo,
                         localModel = LiteRtModelClient.firstAvailableOrNoop(app),
+                        logStore = LogStore.getInstance(app),
                     ),
                 )
             }

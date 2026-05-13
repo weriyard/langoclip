@@ -1,6 +1,6 @@
 package com.floatingclipboard.translation
 
-import android.util.Log
+import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
 import com.floatingclipboard.data.translation.TranslationDao
@@ -34,23 +34,24 @@ class TranslationOrchestrator(
     private val settingsRepo: SettingsRepository,
     private val localModel: LocalModelClient = NoopLocalModelClient,
     private val embeddingScorer: EmbeddingScorer? = null,
+    private val logStore: LogStore? = null,
 ) {
     private val dictionary = DictionaryClient()
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
     suspend fun translate(token: String, sentence: String): TranslationResult {
         val lemma = lemmatizer.lemmatize(token)
-        Log.d(TAG, "translate: token='$token' lemma='$lemma' localModel.isAvailable=${localModel.isAvailable}")
+        logStore?.d(TAG,"translate: token='$token' lemma='$lemma' localModel.isAvailable=${localModel.isAvailable}")
 
         // 1. Cache lookup
         translationDao.get(lemma)?.let {
-            Log.d(TAG, "translate: HIT cache → returning cached result")
+            logStore?.d(TAG,"translate: HIT cache → returning cached result")
             return it.toDomain()
         }
 
         // 2. Dictionary (EN definitions + examples)
         val dictSenses = dictionary.lookup(lemma)
-        Log.d(TAG, "translate: dictionary senses=${dictSenses?.senses?.size ?: 0}")
+        logStore?.d(TAG,"translate: dictionary senses=${dictSenses?.senses?.size ?: 0}")
         val definitions = dictSenses?.senses?.map { it.meaning } ?: emptyList()
         val examples = dictSenses?.senses?.mapNotNull { it.example.ifBlank { null } } ?: emptyList()
 
@@ -59,41 +60,41 @@ class TranslationOrchestrator(
 
         // 4. Local model (if available)
         if (localModel.isAvailable) {
-            Log.d(TAG, "translate: trying local model…")
+            logStore?.d(TAG,"translate: trying local model…")
             val localRaw = runCatching { localModel.translate(prompt) }
-                .onFailure { Log.e(TAG, "translate: local model threw", it) }
+                .onFailure { logStore?.e(TAG,"translate: local model threw: ${it.message}") }
                 .getOrNull()
-            Log.d(TAG, "translate: local raw=${localRaw?.take(120)}")
+            logStore?.d(TAG,"translate: local raw=${localRaw?.take(120)}")
             if (localRaw != null) {
                 val localDto = runCatching { json.decodeFromString<TranslationDto>(localRaw) }
-                    .onFailure { Log.w(TAG, "translate: failed to parse local JSON: ${localRaw.take(200)}") }
+                    .onFailure { logStore?.w(TAG,"translate: failed to parse local JSON: ${localRaw.take(200)}") }
                     .getOrNull()
                 if (localDto != null) {
                     val score = TranslationScorer.score(token, localDto.translation, embeddingScorer)
                     val decision = TranslationScorer.decide(score)
-                    Log.d(TAG, "translate: local translation='${localDto.translation}' score=$score decision=$decision")
+                    logStore?.d(TAG,"translate: local translation='${localDto.translation}' score=$score decision=$decision")
 
                     val settings = settingsRepo.settings.first()
                     val result = when (decision) {
                         RoutingDecision.USE_LOCAL -> {
-                            Log.d(TAG, "translate: → LOCAL")
+                            logStore?.d(TAG,"translate: → LOCAL")
                             localDto.toResult(lemma, score, TranslationSource.LOCAL)
                         }
                         RoutingDecision.HAIKU_JUDGE -> {
-                            Log.d(TAG, "translate: → HAIKU_JUDGE")
+                            logStore?.d(TAG,"translate: → HAIKU_JUDGE")
                             val judgeScore = judgeWithHaiku(token, sentence, localDto.translation, settings)
-                            Log.d(TAG, "translate: judgeScore=$judgeScore")
+                            logStore?.d(TAG,"translate: judgeScore=$judgeScore")
                             if (judgeScore >= TranslationScorer.HAIKU_JUDGE_ACCEPT)
                                 localDto.toResult(lemma, score, TranslationSource.LOCAL)
                             else
                                 callApi(prompt, lemma, score, settings, useHaiku = true)
                         }
                         RoutingDecision.HAIKU_DIRECT -> {
-                            Log.d(TAG, "translate: → HAIKU_DIRECT")
+                            logStore?.d(TAG,"translate: → HAIKU_DIRECT")
                             callApi(prompt, lemma, score, settings, useHaiku = true)
                         }
                         RoutingDecision.SONNET -> {
-                            Log.d(TAG, "translate: → SONNET")
+                            logStore?.d(TAG,"translate: → SONNET")
                             callApi(prompt, lemma, score, settings, useHaiku = false)
                         }
                     }
@@ -104,10 +105,10 @@ class TranslationOrchestrator(
         }
 
         // 5. No local model — go directly to API based on sentence complexity
-        Log.d(TAG, "translate: no local model result → API fallback")
+        logStore?.d(TAG,"translate: no local model result → API fallback")
         val settings = settingsRepo.settings.first()
         val useHaiku = !isComplexSentence(sentence)
-        Log.d(TAG, "translate: calling API useHaiku=$useHaiku")
+        logStore?.d(TAG,"translate: calling API useHaiku=$useHaiku")
         val result = callApi(prompt, lemma, score = 0f, settings, useHaiku)
         cacheResult(result)
         return result
