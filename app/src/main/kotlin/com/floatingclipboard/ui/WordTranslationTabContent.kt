@@ -146,6 +146,31 @@ private fun WordTranslationResult(
         }
     }
 
+    // English source from dictionaryapi.dev
+    if (result.definitionsEn.isNotEmpty() || result.examplesEn.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Źródło EN (dictionaryapi.dev)",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            result.definitionsEn.forEachIndexed { i, def ->
+                SelectionContainer {
+                    Text("${i + 1}. $def", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            result.examplesEn.forEach { ex ->
+                SelectionContainer {
+                    Text(
+                        text = ex,
+                        style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+
     // Actions
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         TextButton(onClick = { onShowExamples(result.baseForm.ifBlank { result.lemma }, result.translation) }) {

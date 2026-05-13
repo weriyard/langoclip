@@ -52,11 +52,11 @@ class TranslationOrchestrator(
         // 2. Dictionary (EN definitions + examples)
         val dictSenses = dictionary.lookup(lemma)
         logStore?.d(TAG,"translate: dictionary senses=${dictSenses?.senses?.size ?: 0}")
-        val definitions = dictSenses?.senses?.map { it.meaning } ?: emptyList()
-        val examples = dictSenses?.senses?.mapNotNull { it.example.ifBlank { null } } ?: emptyList()
+        val definitionsEn = dictSenses?.senses?.map { it.meaning } ?: emptyList()
+        val examplesEn = dictSenses?.senses?.mapNotNull { it.example.ifBlank { null } } ?: emptyList()
 
         // 3. Build translation prompt
-        val prompt = buildPrompt(token, definitions, examples, sentence)
+        val prompt = buildPrompt(token, definitionsEn, examplesEn, sentence)
 
         // 4. Local model (if available)
         if (localModel.isAvailable) {
@@ -98,8 +98,9 @@ class TranslationOrchestrator(
                             callApi(prompt, lemma, score, settings, useHaiku = false)
                         }
                     }
-                    cacheResult(result)
-                    return result
+                    val enriched = result.copy(definitionsEn = definitionsEn, examplesEn = examplesEn)
+                    cacheResult(enriched)
+                    return enriched
                 }
             }
         }
@@ -110,6 +111,7 @@ class TranslationOrchestrator(
         val useHaiku = !isComplexSentence(sentence)
         logStore?.d(TAG,"translate: calling API useHaiku=$useHaiku")
         val result = callApi(prompt, lemma, score = 0f, settings, useHaiku)
+            .copy(definitionsEn = definitionsEn, examplesEn = examplesEn)
         cacheResult(result)
         return result
     }

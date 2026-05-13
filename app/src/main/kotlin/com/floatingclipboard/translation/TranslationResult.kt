@@ -9,6 +9,9 @@ data class TranslationResult(
     val baseForm: String,
     val source: TranslationSource,
     val score: Float,
+    // English source data from dictionaryapi.dev — not cached in Room, empty for cache hits
+    val definitionsEn: List<String> = emptyList(),
+    val examplesEn: List<String> = emptyList(),
 )
 
 enum class TranslationSource(val tag: String) {
