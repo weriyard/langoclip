@@ -63,13 +63,19 @@ class SettingsRepository(context: Context) {
 
     private val secure by lazy {
         val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-        EncryptedSharedPreferences.create(
+        fun create() = EncryptedSharedPreferences.create(
             SECURE_PREFS_NAME,
             masterKeyAlias,
             appContext,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
+        // Keyset can become unreadable after an app update that changes the Tink version.
+        // Wipe and recreate — user loses stored API keys but app recovers cleanly.
+        runCatching { create() }.getOrElse {
+            appContext.deleteSharedPreferences(SECURE_PREFS_NAME)
+            create()
+        }
     }
 
     private val geminiApiOverride = MutableStateFlow(readSecureKey(KEY_GEMINI_API))
