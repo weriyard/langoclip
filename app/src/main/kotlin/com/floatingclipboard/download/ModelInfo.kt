@@ -25,9 +25,9 @@ val TRANSLATION_MODELS = listOf(
         displayName = "Gemma 4 E4B — najlepsza jakość",
         huggingFaceRepo = "litert-community/gemma-4-E4B-it-litert-lm",
         fileName = "gemma-4-E4B-it.litertlm",
-        downloadSizeMb = 2500,
+        downloadSizeMb = 3750,
         requiredRamGb = 8f,
-        requiredStorageGb = 3.0f,
+        requiredStorageGb = 4.0f,
     ),
     ModelInfo(
         id = "qwen3_4b",

@@ -2,6 +2,7 @@
 
 package com.floatingclipboard.local
 
+import android.app.ActivityManager
 import android.content.Context
 import com.floatingclipboard.download.ModelDownloadManager
 import com.floatingclipboard.download.TRANSLATION_MODELS
@@ -65,9 +66,18 @@ class LiteRtModelClient(
          */
         fun firstAvailableOrNoop(context: Context): LocalModelClient {
             val manager = ModelDownloadManager(context)
-            val model = TRANSLATION_MODELS.firstOrNull { manager.isDownloaded(it) }
-                ?: return NoopLocalModelClient
+            val totalRamGb = totalRamGb(context)
+            val model = TRANSLATION_MODELS.firstOrNull {
+                manager.isDownloaded(it) && it.requiredRamGb <= totalRamGb
+            } ?: return NoopLocalModelClient
             return LiteRtModelClient(context, manager.modelFile(model).absolutePath)
+        }
+
+        private fun totalRamGb(context: Context): Float {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val info = ActivityManager.MemoryInfo()
+            am.getMemoryInfo(info)
+            return info.totalMem / (1024f * 1024 * 1024)
         }
     }
 }

@@ -26,6 +26,7 @@ private val envProps: Properties = run {
 }
 val defaultOpenAiKey: String = envProps.getProperty("OPENAI_API_KEY", "")
 val defaultAnthropicKey: String = envProps.getProperty("CLAUDE_API_KEY", "")
+val defaultHfToken: String = envProps.getProperty("HF_TOKEN", "")
 
 android {
     namespace = "com.floatingclipboard"
@@ -41,6 +42,7 @@ android {
         buildConfigField("String", "DEFAULT_GEMINI_API_KEY", "\"$defaultGeminiKey\"")
         buildConfigField("String", "DEFAULT_OPENAI_API_KEY", "\"$defaultOpenAiKey\"")
         buildConfigField("String", "DEFAULT_ANTHROPIC_API_KEY", "\"$defaultAnthropicKey\"")
+        buildConfigField("String", "DEFAULT_HF_TOKEN", "\"$defaultHfToken\"")
     }
 
     buildTypes {

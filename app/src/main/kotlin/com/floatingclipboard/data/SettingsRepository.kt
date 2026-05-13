@@ -101,7 +101,7 @@ class SettingsRepository(context: Context) {
             targetLanguage = prefs[PREF_TARGET_LANG] ?: DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = prefs[PREF_AUTO_START_BUBBLE] ?: true,
             appLocale = AppLocale.parse(prefs[PREF_APP_LOCALE]),
-            huggingFaceToken = hfToken ?: "",
+            huggingFaceToken = hfToken ?: BuildConfig.DEFAULT_HF_TOKEN,
         )
     }
 

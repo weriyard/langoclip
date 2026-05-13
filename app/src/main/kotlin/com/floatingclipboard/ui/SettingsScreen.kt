@@ -441,7 +441,7 @@ fun SettingsScreen(
             modelStates.forEach { state ->
                 LocalModelCard(
                     state = state,
-                    onDownload = { downloadVm.download(state.model) },
+                    onDownload = { downloadVm.download(state.model, saved.huggingFaceToken) },
                     onCancel = { downloadVm.cancel(state.model) },
                     onDelete = { downloadVm.delete(state.model) },
                 )
