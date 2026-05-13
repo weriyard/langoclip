@@ -4,6 +4,7 @@ package com.floatingclipboard.local
 
 import android.app.ActivityManager
 import android.content.Context
+import android.util.Log
 import com.floatingclipboard.download.ModelDownloadManager
 import com.floatingclipboard.download.TRANSLATION_MODELS
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
@@ -40,9 +41,12 @@ class LiteRtModelClient(
 
     override suspend fun translate(prompt: String): String? = withContext(inferenceDispatcher) {
         if (!isAvailable) return@withContext null
+        Log.d(TAG, "translate() called, model=$modelPath")
         runCatching {
-            ensureLlm().generateResponse(prompt)
-        }.getOrNull()
+            val result = ensureLlm().generateResponse(prompt)
+            Log.d(TAG, "translate() OK, response length=${result.length}")
+            result
+        }.onFailure { Log.e(TAG, "translate() failed", it) }.getOrNull()
     }
 
     override fun close() {
@@ -52,14 +56,20 @@ class LiteRtModelClient(
     }
 
     private fun ensureLlm(): LlmInference = llm ?: run {
+        Log.d(TAG, "Loading model from $modelPath …")
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelPath)
             .setMaxTokens(512)
             .build()
-        LlmInference.createFromOptions(context, options).also { llm = it }
+        LlmInference.createFromOptions(context, options).also {
+            llm = it
+            Log.d(TAG, "Model loaded OK")
+        }
     }
 
     companion object {
+        private const val TAG = "LiteRtModel"
+
         /**
          * Returns a [LiteRtModelClient] for the first downloaded translation model,
          * or [NoopLocalModelClient] if none is downloaded yet.
@@ -67,9 +77,18 @@ class LiteRtModelClient(
         fun firstAvailableOrNoop(context: Context): LocalModelClient {
             val manager = ModelDownloadManager(context)
             val totalRamGb = totalRamGb(context)
-            val model = TRANSLATION_MODELS.firstOrNull {
-                manager.isDownloaded(it) && it.requiredRamGb <= totalRamGb
-            } ?: return NoopLocalModelClient
+            Log.d(TAG, "firstAvailableOrNoop: device RAM=${totalRamGb}GB")
+            val model = TRANSLATION_MODELS.firstOrNull { m ->
+                val downloaded = manager.isDownloaded(m)
+                val fitsRam = m.requiredRamGb <= totalRamGb
+                Log.d(TAG, "  ${m.id}: downloaded=$downloaded requiredRam=${m.requiredRamGb}GB fitsRam=$fitsRam")
+                downloaded && fitsRam
+            }
+            if (model == null) {
+                Log.d(TAG, "firstAvailableOrNoop: no model available → Noop")
+                return NoopLocalModelClient
+            }
+            Log.d(TAG, "firstAvailableOrNoop: using ${model.id}")
             return LiteRtModelClient(context, manager.modelFile(model).absolutePath)
         }
 
