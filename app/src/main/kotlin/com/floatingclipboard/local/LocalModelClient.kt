@@ -1,9 +1,10 @@
 package com.floatingclipboard.local
 
 /**
- * Abstraction over on-device LLM inference.
- * Real implementation: LiteRtModelClient (requires downloaded .litertlm model).
- * Default: NoopLocalModelClient — orchestrator skips local inference and goes to API.
+ * Abstraction over on-device LLM inference. Reserved hook — no implementation is wired up
+ * right now; orchestrator and ActionRunner pass [NoopLocalModelClient] and rely on the
+ * remote API. Plug a concrete implementation in via the orchestrator/runner ctor when
+ * on-device inference comes back.
  */
 interface LocalModelClient {
     val isAvailable: Boolean

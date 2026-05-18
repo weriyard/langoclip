@@ -21,14 +21,12 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -42,7 +40,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -54,7 +51,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.floatingclipboard.R
 import com.floatingclipboard.data.AppLocale
 import com.floatingclipboard.data.Provider
-import com.floatingclipboard.download.DownloadProgress
 
 private val SUGGESTED_LANGUAGES = listOf("polski", "English", "Deutsch", "Français", "Español", "Italiano", "ukraiński")
 
@@ -67,10 +63,8 @@ fun SettingsScreen(
     onOpenLogs: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
-    downloadVm: ModelDownloadViewModel = viewModel(factory = ModelDownloadViewModel.Factory),
 ) {
     val saved by viewModel.state.collectAsStateWithLifecycle()
-    val modelStates by downloadVm.models.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var provider by remember(saved) { mutableStateOf(saved.provider) }
@@ -82,8 +76,6 @@ fun SettingsScreen(
     var anthropicModel by remember(saved) { mutableStateOf(saved.anthropicModel) }
     var targetLanguage by remember(saved) { mutableStateOf(saved.targetLanguage) }
 
-    var hfToken by remember(saved) { mutableStateOf(saved.huggingFaceToken) }
-    var hfTokenVisible by remember { mutableStateOf(false) }
     var keyVisible by remember { mutableStateOf(false) }
     var providerMenuOpen by remember { mutableStateOf(false) }
     var modelMenuOpen by remember { mutableStateOf(false) }
@@ -408,45 +400,6 @@ fun SettingsScreen(
                 )
             }
 
-            // === Modele lokalne ===
-            Text("Modele lokalne", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Pobierz model aby tłumaczyć słowa bez internetu. Bez modelu aplikacja używa Claude Haiku.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedTextField(
-                value = hfToken,
-                onValueChange = { hfToken = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("HuggingFace token") },
-                placeholder = { Text("hf_...") },
-                singleLine = true,
-                visualTransformation = if (hfTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { hfTokenVisible = !hfTokenVisible }) {
-                        Icon(
-                            if (hfTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = stringResource(R.string.show_hide_password),
-                        )
-                    }
-                },
-            )
-            if (hfToken != saved.huggingFaceToken) {
-                Button(
-                    onClick = { viewModel.setHuggingFaceToken(hfToken) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Zapisz token HuggingFace") }
-            }
-            modelStates.forEach { state ->
-                LocalModelCard(
-                    state = state,
-                    onDownload = { downloadVm.download(state.model, saved.huggingFaceToken) },
-                    onCancel = { downloadVm.cancel(state.model) },
-                    onDelete = { downloadVm.delete(state.model) },
-                )
-            }
-
             Text(stringResource(R.string.settings_diagnostics_header), style = MaterialTheme.typography.titleMedium)
             Text(
                 stringResource(R.string.settings_diagnostics_desc),
@@ -469,67 +422,6 @@ fun SettingsScreen(
                 onClick = { pinShortcutToHome(context, shortcutUnsupportedMsg) },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.settings_pin_to_home)) }
-        }
-    }
-}
-
-@Composable
-private fun LocalModelCard(
-    state: ModelDownloadUiState,
-    onDownload: () -> Unit,
-    onCancel: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(state.model.displayName, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        "${state.model.downloadSizeMb} MB · ${state.model.requiredRamGb} GB RAM",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                when {
-                    state.isDownloaded -> {
-                        TextButton(onClick = onDelete) { Text("Usuń") }
-                    }
-                    state.progress is DownloadProgress.Downloading -> {
-                        TextButton(onClick = onCancel) { Text("Anuluj") }
-                    }
-                    else -> {
-                        Button(onClick = onDownload) { Text("Pobierz") }
-                    }
-                }
-            }
-
-            when (val p = state.progress) {
-                is DownloadProgress.Downloading -> {
-                    LinearProgressIndicator(
-                        progress = { p.percent / 100f },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        "${p.percent}% (${p.bytesDownloaded / 1_048_576} / ${p.bytesTotal / 1_048_576} MB)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                is DownloadProgress.Failed -> Text(
-                    "Błąd: ${p.error}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                else -> Unit
-            }
         }
     }
 }

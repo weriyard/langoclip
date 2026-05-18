@@ -27,12 +27,15 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
+import com.floatingclipboard.local.LocalModelClient
+import com.floatingclipboard.local.NoopLocalModelClient
 
 class ActionRunner(
     private val settingsRepository: SettingsRepository,
     private val prompts: PromptLoader,
     private val cache: LlmCache,
     private val logs: LogStore,
+    private val localModel: LocalModelClient = NoopLocalModelClient,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
@@ -227,6 +230,7 @@ class ActionRunner(
             emit(SensesState.Error("Fraza jest pusta"))
             return@flow
         }
+        emit(SensesState.Loading())
         val settings = settingsRepository.settings.first()
 
         // Free Dictionary API — single words only, no API key, Wiktionary-backed.
@@ -245,9 +249,28 @@ class ActionRunner(
         val dictResult = DictionaryClient().lookup(phrase)
         if (dictResult != null) {
             logs.d(TAG, "DICT HIT senses phrase='${phrase.take(40)}' senses=${dictResult.senses.size}")
+            // Show all senses immediately with empty translations — UI shows English right away.
+            emit(SensesState.Success(dictResult.senses, dictResult.baseForm))
+            // Translate sequentially so the UI can emit a progressive update after each sense
+            // instead of one big wait at the end.
+            val enriched = mutableListOf<com.floatingclipboard.actions.WordSense>()
+            val total = dictResult.senses.size
+            for ((idx, s) in dictResult.senses.withIndex()) {
+                val updated = if (s.example.isBlank()) {
+                    s
+                } else {
+                    logs.d(TAG, "  sense ${idx + 1}/$total: translating '${s.example.take(40)}'")
+                    s.copy(exampleTranslation = translateExample(s.example, settings))
+                }
+                enriched += updated
+                // Emit partial: already-translated + remaining originals (still English-only).
+                val current = enriched + dictResult.senses.drop(idx + 1)
+                emit(SensesState.Success(current, dictResult.baseForm))
+            }
+            logs.d(TAG, "DICT senses translated: ${enriched.count { it.exampleTranslation.isNotBlank() }}/${enriched.size}")
             val dto = SensesResponseDto(
                 baseForm = dictResult.baseForm,
-                senses = dictResult.senses.map { s ->
+                senses = enriched.map { s ->
                     SenseDto(
                         partOfSpeech = s.partOfSpeech.name,
                         meaning = s.meaning,
@@ -257,7 +280,6 @@ class ActionRunner(
                 },
             )
             cache.put(dictKey, json.encodeToString(dto))
-            emit(SensesState.Success(dictResult.senses, dictResult.baseForm))
             return@flow
         }
 
@@ -472,7 +494,36 @@ class ActionRunner(
         return null
     }
 
-    /** Removes ` ```json\n{...}\n``` ` wrapping if the model added it (markdown formatting). */
+    private suspend fun translateExample(example: String, settings: Settings): String {
+        val cleanInput = example.trim()
+        val cacheKey = LlmCache.keyFor(CACHE_VERSION, "EXAMPLE_TRANSLATE:${settings.provider.name}", "", cleanInput.lowercase())
+        cache.get(cacheKey)?.let {
+            logs.d(TAG, "translateExample: CACHE  '${cleanInput.take(50)}' → '${it.take(50)}'")
+            return it
+        }
+
+        val started = System.currentTimeMillis()
+        val translation = runCatching {
+            val client = createLlmClient(settings, HAIKU_MODEL)
+            val builder = StringBuilder()
+            client.stream(
+                "Translate English to Polish. Respond with only the Polish translation, nothing else.",
+                cleanInput,
+                null,
+            ).collect { delta -> builder.append(delta) }
+            builder.toString().trim()
+        }.onFailure { logs.w(TAG, "translateExample: HAIKU failed: ${it.message}") }
+            .getOrElse { "" }
+        val elapsed = System.currentTimeMillis() - started
+        if (translation.isNotBlank()) {
+            logs.d(TAG, "translateExample: HAIKU ${elapsed}ms '${cleanInput.take(50)}' → '${translation.take(50)}'")
+            cache.put(cacheKey, translation)
+        } else {
+            logs.w(TAG, "translateExample: EMPTY ${elapsed}ms for '${cleanInput.take(50)}'")
+        }
+        return translation
+    }
+
     private fun stripMarkdownWrap(raw: String): String {
         val trimmed = raw.trim()
         val withoutFence = trimmed
@@ -490,6 +541,7 @@ class ActionRunner(
         // variant prompts use themed diversity; StreamingArrayParser handles whitespace in markers.
         private const val CACHE_VERSION = "v7"
         private const val TAG = "LLM"
+        private const val HAIKU_MODEL = "claude-haiku-4-5-20251001"
 
         private val CONTEXT_THEMES = listOf(
             "Focus on formal/academic contexts (essays, lectures, official documents)",

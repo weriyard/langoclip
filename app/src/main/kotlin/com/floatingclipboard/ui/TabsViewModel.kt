@@ -19,7 +19,7 @@ import com.floatingclipboard.data.TabId
 import com.floatingclipboard.data.TabsRepository
 import com.floatingclipboard.data.lemma.LemmaDatabase
 import com.floatingclipboard.data.translation.TranslationDatabase
-import com.floatingclipboard.local.LiteRtModelClient
+import com.floatingclipboard.local.NoopLocalModelClient
 import com.floatingclipboard.translation.Lemmatizer
 import com.floatingclipboard.translation.TranslationOrchestrator
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,6 +38,7 @@ class TabsViewModel(
     private val tabs: TabsRepository,
     private val runner: ActionRunner,
     private val orchestrator: TranslationOrchestrator? = null,
+    private val logStore: LogStore? = null,
 ) : ViewModel() {
 
     val tabsList: StateFlow<List<Tab>> = tabs.tabs
@@ -138,7 +139,11 @@ class TabsViewModel(
 
     /** Translates a single selected word using TranslationOrchestrator. Opens a new WordTranslation tab. */
     fun translateWord(token: String, sentence: String) {
-        val orc = orchestrator ?: return
+        logStore?.d("TabsViewModel", "translateWord called: '$token'")
+        val orc = orchestrator ?: run {
+            logStore?.e("TabsViewModel", "translateWord: orchestrator is null!")
+            return
+        }
         val trimmed = token.trim()
         if (trimmed.isBlank()) return
         val tabId = tabs.openWordTranslation(trimmed, sentence, WordTranslationState.Loading)
@@ -177,14 +182,16 @@ class TabsViewModel(
                         PromptLoader(app),
                         LlmCache.getInstance(app),
                         LogStore.getInstance(app),
+                        localModel = NoopLocalModelClient,
                     ),
                     orchestrator = TranslationOrchestrator(
                         lemmatizer = Lemmatizer(lemmaDb),
                         translationDao = translationDb.translationDao(),
                         settingsRepo = settingsRepo,
-                        localModel = LiteRtModelClient.firstAvailableOrNoop(app),
+                        localModel = NoopLocalModelClient,
                         logStore = LogStore.getInstance(app),
                     ),
+                    logStore = LogStore.getInstance(app),
                 )
             }
         }

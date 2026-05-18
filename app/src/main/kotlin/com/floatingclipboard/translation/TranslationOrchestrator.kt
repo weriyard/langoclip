@@ -25,15 +25,18 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
- * Main orchestration chain (CLAUDE-6.md):
- * lemmatize → cache → dictionary → local model → score → decide → api fallback → cache write
+ * Orchestration chain for single-word translation:
+ * lemmatize → cache → dictionary → API (Haiku/Sonnet) → cache write
+ *
+ * [localModel] is a forward-looking hook — currently [NoopLocalModelClient] and unused.
+ * When on-device inference comes back, plug an implementation in via the ctor and reinsert
+ * the local-first branch between dictionary lookup and API call.
  */
 class TranslationOrchestrator(
     private val lemmatizer: Lemmatizer,
     private val translationDao: TranslationDao,
     private val settingsRepo: SettingsRepository,
     private val localModel: LocalModelClient = NoopLocalModelClient,
-    private val embeddingScorer: EmbeddingScorer? = null,
     private val logStore: LogStore? = null,
 ) {
     private val dictionary = DictionaryClient()
@@ -41,76 +44,24 @@ class TranslationOrchestrator(
 
     suspend fun translate(token: String, sentence: String): TranslationResult {
         val lemma = lemmatizer.lemmatize(token)
-        logStore?.d(TAG,"translate: token='$token' lemma='$lemma' localModel.isAvailable=${localModel.isAvailable}")
+        logStore?.d(TAG, "translate: token='$token' lemma='$lemma'")
 
-        // 1. Cache lookup
         translationDao.get(lemma)?.let {
-            logStore?.d(TAG,"translate: HIT cache → returning cached result")
+            logStore?.d(TAG, "translate: HIT cache → returning cached result")
             return it.toDomain()
         }
 
-        // 2. Dictionary (EN definitions + examples)
         val dictSenses = dictionary.lookup(lemma)
-        logStore?.d(TAG,"translate: dictionary senses=${dictSenses?.senses?.size ?: 0}")
-        val definitionsEn = dictSenses?.senses?.map { it.meaning } ?: emptyList()
-        val examplesEn = dictSenses?.senses?.mapNotNull { it.example.ifBlank { null } } ?: emptyList()
+        logStore?.d(TAG, "translate: dictionary senses=${dictSenses?.senses?.size ?: 0}")
+        val sensesForPrompt = dictSenses?.senses.orEmpty()
+        val definitionsEn = sensesForPrompt.map { it.meaning }
+        val examplesEn = sensesForPrompt.mapNotNull { it.example.ifBlank { null } }
 
-        // 3. Build translation prompt
-        val prompt = buildPrompt(token, definitionsEn, examplesEn, sentence)
-
-        // 4. Local model (if available)
-        if (localModel.isAvailable) {
-            logStore?.d(TAG,"translate: trying local model…")
-            val localRaw = runCatching { localModel.translate(prompt) }
-                .onFailure { logStore?.e(TAG,"translate: local model threw: ${it.message}") }
-                .getOrNull()
-            logStore?.d(TAG,"translate: local raw=${localRaw?.take(120)}")
-            if (localRaw != null) {
-                val localDto = runCatching { json.decodeFromString<TranslationDto>(localRaw) }
-                    .onFailure { logStore?.w(TAG,"translate: failed to parse local JSON: ${localRaw.take(200)}") }
-                    .getOrNull()
-                if (localDto != null) {
-                    val score = TranslationScorer.score(token, localDto.translation, embeddingScorer)
-                    val decision = TranslationScorer.decide(score)
-                    logStore?.d(TAG,"translate: local translation='${localDto.translation}' score=$score decision=$decision")
-
-                    val settings = settingsRepo.settings.first()
-                    val result = when (decision) {
-                        RoutingDecision.USE_LOCAL -> {
-                            logStore?.d(TAG,"translate: → LOCAL")
-                            localDto.toResult(lemma, score, TranslationSource.LOCAL)
-                        }
-                        RoutingDecision.HAIKU_JUDGE -> {
-                            logStore?.d(TAG,"translate: → HAIKU_JUDGE")
-                            val judgeScore = judgeWithHaiku(token, sentence, localDto.translation, settings)
-                            logStore?.d(TAG,"translate: judgeScore=$judgeScore")
-                            if (judgeScore >= TranslationScorer.HAIKU_JUDGE_ACCEPT)
-                                localDto.toResult(lemma, score, TranslationSource.LOCAL)
-                            else
-                                callApi(prompt, lemma, score, settings, useHaiku = true)
-                        }
-                        RoutingDecision.HAIKU_DIRECT -> {
-                            logStore?.d(TAG,"translate: → HAIKU_DIRECT")
-                            callApi(prompt, lemma, score, settings, useHaiku = true)
-                        }
-                        RoutingDecision.SONNET -> {
-                            logStore?.d(TAG,"translate: → SONNET")
-                            callApi(prompt, lemma, score, settings, useHaiku = false)
-                        }
-                    }
-                    val enriched = result.copy(definitionsEn = definitionsEn, examplesEn = examplesEn)
-                    cacheResult(enriched)
-                    return enriched
-                }
-            }
-        }
-
-        // 5. No local model — go directly to API based on sentence complexity
-        logStore?.d(TAG,"translate: no local model result → API fallback")
+        val prompt = buildPrompt(token, sensesForPrompt, sentence)
         val settings = settingsRepo.settings.first()
         val useHaiku = !isComplexSentence(sentence)
-        logStore?.d(TAG,"translate: calling API useHaiku=$useHaiku")
-        val result = callApi(prompt, lemma, score = 0f, settings, useHaiku)
+        logStore?.d(TAG, "translate: calling API useHaiku=$useHaiku")
+        val result = callApi(prompt, lemma, settings, useHaiku)
             .copy(definitionsEn = definitionsEn, examplesEn = examplesEn)
         cacheResult(result)
         return result
@@ -118,12 +69,15 @@ class TranslationOrchestrator(
 
     private fun buildPrompt(
         token: String,
-        definitions: List<String>,
-        examples: List<String>,
+        senses: List<com.floatingclipboard.actions.WordSense>,
         sentence: String,
     ): String {
-        val defsText = definitions.take(2).mapIndexed { i, d -> "${i + 1}. $d" }.joinToString("\n")
-        val exampleText = examples.firstOrNull()?.let { "Example: $it\n" } ?: ""
+        val defsText = senses.take(2)
+            .joinToString("\n") { "${it.partOfSpeech.name.lowercase()}: ${it.meaning}" }
+        val exampleText = senses.mapNotNull { it.example.ifBlank { null } }
+            .take(2)
+            .joinToString("\n") { "Example: $it" }
+            .let { if (it.isBlank()) "" else "$it\n" }
         return """
 Translate to Polish. Respond only in JSON.
 
@@ -143,30 +97,9 @@ JSON response:
         """.trimIndent()
     }
 
-    private suspend fun judgeWithHaiku(
-        token: String,
-        sentence: String,
-        translation: String,
-        settings: Settings,
-    ): Float {
-        val judgePrompt = """
-Rate the quality of this English→Polish translation from 0.0 to 1.0.
-Respond with ONLY a decimal number, nothing else.
-
-English word: "$token"
-Used in sentence: "$sentence"
-Polish translation: "$translation"
-        """.trimIndent()
-        val response = runCatching {
-            callAnthropicRaw(judgePrompt, settings.anthropicApiKey, HAIKU_MODEL)
-        }.getOrNull() ?: return 0f
-        return response.trim().toFloatOrNull() ?: 0f
-    }
-
     private suspend fun callApi(
         prompt: String,
         lemma: String,
-        score: Float,
         settings: Settings,
         useHaiku: Boolean,
     ): TranslationResult {
@@ -178,7 +111,7 @@ Polish translation: "$translation"
 
         val dto = runCatching { json.decodeFromString<TranslationDto>(raw) }.getOrNull()
             ?: return fallbackResult(lemma)
-        return dto.toResult(lemma, score, source)
+        return dto.toResult(lemma, score = 0f, source = source)
     }
 
     private suspend fun callAnthropicRaw(prompt: String, apiKey: String, model: String): String {
@@ -206,6 +139,12 @@ Polish translation: "$translation"
 
     private suspend fun cacheResult(result: TranslationResult) {
         translationDao.insert(result.toEntry())
+        // Multi-word phrase: also cache under baseForm so future inflections hit the cache.
+        val baseForm = result.baseForm.trim().lowercase()
+        if (baseForm.isNotEmpty() && baseForm != result.lemma) {
+            translationDao.insert(result.copy(lemma = baseForm).toEntry())
+            logStore?.d(TAG, "cacheResult: also cached under baseForm='$baseForm' (was lemma='${result.lemma}')")
+        }
     }
 
     private fun fallbackResult(lemma: String) = TranslationResult(
@@ -225,8 +164,6 @@ Polish translation: "$translation"
         private const val SONNET_MODEL = "claude-sonnet-4-6"
     }
 }
-
-// ── DTOs ─────────────────────────────────────────────────────────────────────
 
 @Serializable
 private data class TranslationDto(
@@ -272,8 +209,6 @@ private fun TranslationEntry.toDomain() = TranslationResult(
     source = TranslationSource.CACHE,
     score = score,
 )
-
-// ── Anthropic API request/response shapes ────────────────────────────────────
 
 @Serializable
 private data class AnthropicRequest(

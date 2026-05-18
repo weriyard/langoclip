@@ -40,7 +40,6 @@ data class Settings(
     val targetLanguage: String,
     val autoStartBubble: Boolean,
     val appLocale: AppLocale,
-    val huggingFaceToken: String = "",
 ) {
     val activeApiKey: String
         get() = when (provider) {
@@ -81,7 +80,6 @@ class SettingsRepository(context: Context) {
     private val geminiApiOverride = MutableStateFlow(readSecureKey(KEY_GEMINI_API))
     private val openAiApiOverride = MutableStateFlow(readSecureKey(KEY_OPENAI_API))
     private val anthropicApiOverride = MutableStateFlow(readSecureKey(KEY_ANTHROPIC_API))
-    private val hfTokenOverride = MutableStateFlow(readSecureKey(KEY_HF_TOKEN))
 
     private fun readSecureKey(key: String): String? =
         secure.getString(key, null)?.takeIf { it.isNotBlank() }
@@ -90,9 +88,8 @@ class SettingsRepository(context: Context) {
         geminiApiOverride.asStateFlow(),
         openAiApiOverride.asStateFlow(),
         anthropicApiOverride.asStateFlow(),
-        hfTokenOverride.asStateFlow(),
         appContext.settingsDataStore.data,
-    ) { geminiOverride, openAiOverride, anthropicOverride, hfToken, prefs ->
+    ) { geminiOverride, openAiOverride, anthropicOverride, prefs ->
         Settings(
             provider = Provider.parse(prefs[PREF_PROVIDER]),
             geminiApiKey = geminiOverride ?: BuildConfig.DEFAULT_GEMINI_API_KEY,
@@ -107,7 +104,6 @@ class SettingsRepository(context: Context) {
             targetLanguage = prefs[PREF_TARGET_LANG] ?: DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = prefs[PREF_AUTO_START_BUBBLE] ?: true,
             appLocale = AppLocale.parse(prefs[PREF_APP_LOCALE]),
-            huggingFaceToken = hfToken ?: BuildConfig.DEFAULT_HF_TOKEN,
         )
     }
 
@@ -118,7 +114,6 @@ class SettingsRepository(context: Context) {
     suspend fun setGeminiApiKey(key: String) = writeSecureKey(KEY_GEMINI_API, key, geminiApiOverride)
     suspend fun setOpenAiApiKey(key: String) = writeSecureKey(KEY_OPENAI_API, key, openAiApiOverride)
     suspend fun setAnthropicApiKey(key: String) = writeSecureKey(KEY_ANTHROPIC_API, key, anthropicApiOverride)
-    suspend fun setHuggingFaceToken(token: String) = writeSecureKey(KEY_HF_TOKEN, token, hfTokenOverride)
 
     private fun writeSecureKey(prefKey: String, value: String, flow: MutableStateFlow<String?>) {
         val trimmed = value.trim()
@@ -162,7 +157,6 @@ class SettingsRepository(context: Context) {
         private const val KEY_GEMINI_API = "gemini_api_key"
         private const val KEY_OPENAI_API = "openai_api_key"
         private const val KEY_ANTHROPIC_API = "anthropic_api_key"
-        private const val KEY_HF_TOKEN = "hf_token"
         private val PREF_PROVIDER = stringPreferencesKey("provider")
         private val PREF_GEMINI_MODEL = stringPreferencesKey("model")  // legacy name, was Gemini-only
         private val PREF_OPENAI_MODEL = stringPreferencesKey("openai_model")
