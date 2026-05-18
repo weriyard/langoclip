@@ -4,6 +4,7 @@ import com.floatingclipboard.data.LlmCache
 import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
+import com.floatingclipboard.data.example.ExampleDao
 import com.floatingclipboard.llm.BREAKDOWN_SCHEMA
 import com.floatingclipboard.llm.DictionaryClient
 import com.floatingclipboard.llm.EXAMPLES_SCHEMA
@@ -36,9 +37,11 @@ class ActionRunner(
     private val cache: LlmCache,
     private val logs: LogStore,
     private val localModel: LocalModelClient = NoopLocalModelClient,
+    exampleDao: ExampleDao? = null,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+    private val dictionary = DictionaryClient(exampleDao)
 
     val settings: Flow<Settings> get() = settingsRepository.settings
 
@@ -246,7 +249,7 @@ class ActionRunner(
             }
             cache.invalidate(dictKey)
         }
-        val dictResult = DictionaryClient().lookup(phrase)
+        val dictResult = dictionary.lookup(phrase)
         if (dictResult != null) {
             logs.d(TAG, "DICT HIT senses phrase='${phrase.take(40)}' senses=${dictResult.senses.size}")
             // Show all senses immediately with empty translations — UI shows English right away.

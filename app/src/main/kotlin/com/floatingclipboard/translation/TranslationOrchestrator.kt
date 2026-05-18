@@ -3,6 +3,7 @@ package com.floatingclipboard.translation
 import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
+import com.floatingclipboard.data.example.ExampleDao
 import com.floatingclipboard.data.translation.TranslationDao
 import com.floatingclipboard.data.translation.TranslationEntry
 import com.floatingclipboard.llm.DictionaryClient
@@ -37,9 +38,10 @@ class TranslationOrchestrator(
     private val translationDao: TranslationDao,
     private val settingsRepo: SettingsRepository,
     private val localModel: LocalModelClient = NoopLocalModelClient,
+    private val exampleDao: ExampleDao? = null,
     private val logStore: LogStore? = null,
 ) {
-    private val dictionary = DictionaryClient()
+    private val dictionary = DictionaryClient(exampleDao)
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
     suspend fun translate(token: String, sentence: String): TranslationResult {

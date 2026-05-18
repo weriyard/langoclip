@@ -17,6 +17,7 @@ import com.floatingclipboard.data.Tab
 import com.floatingclipboard.data.Tab.Companion.PASTE_ID
 import com.floatingclipboard.data.TabId
 import com.floatingclipboard.data.TabsRepository
+import com.floatingclipboard.data.example.ExampleDatabase
 import com.floatingclipboard.data.lemma.LemmaDatabase
 import com.floatingclipboard.data.translation.TranslationDatabase
 import com.floatingclipboard.local.NoopLocalModelClient
@@ -175,6 +176,7 @@ class TabsViewModel(
                 val settingsRepo = SettingsRepository(app)
                 val lemmaDb = LemmaDatabase.getOptional(app)
                 val translationDb = TranslationDatabase.getInstance(app)
+                val exampleDao = ExampleDatabase.getOptional(app)?.exampleDao()
                 TabsViewModel(
                     tabs = TabsRepository.getInstance(),
                     runner = ActionRunner(
@@ -183,12 +185,14 @@ class TabsViewModel(
                         LlmCache.getInstance(app),
                         LogStore.getInstance(app),
                         localModel = NoopLocalModelClient,
+                        exampleDao = exampleDao,
                     ),
                     orchestrator = TranslationOrchestrator(
                         lemmatizer = Lemmatizer(lemmaDb),
                         translationDao = translationDb.translationDao(),
                         settingsRepo = settingsRepo,
                         localModel = NoopLocalModelClient,
+                        exampleDao = exampleDao,
                         logStore = LogStore.getInstance(app),
                     ),
                     logStore = LogStore.getInstance(app),

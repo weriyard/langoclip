@@ -2,6 +2,7 @@ package com.floatingclipboard.llm
 
 import com.floatingclipboard.actions.PartOfSpeech
 import com.floatingclipboard.actions.WordSense
+import com.floatingclipboard.data.example.ExampleDao
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.http.isSuccess
@@ -11,8 +12,12 @@ import kotlinx.serialization.Serializable
  * Free Dictionary API (dictionaryapi.dev) — no key, no cost, Wiktionary-based.
  * Only handles single words; multi-word phrases (phrasal verbs, idioms) return null so
  * the caller falls back to LLM.
+ *
+ * If [exampleDao] is provided, senses returned without an `example` field are enriched
+ * from the local Wiktionary-derived examples database — fills the common gap where
+ * dictionaryapi.dev returns a definition but no usage sentence.
  */
-class DictionaryClient {
+class DictionaryClient(private val exampleDao: ExampleDao? = null) {
 
     suspend fun lookup(word: String): DictionaryResult? {
         val clean = word.trim().lowercase()
@@ -24,7 +29,7 @@ class DictionaryClient {
             if (entries.isEmpty()) return null
 
             val baseForm = entries.first().word.ifBlank { word }
-            val senses = entries
+            val rawSenses = entries
                 .flatMap { it.meanings }
                 .flatMap { meaning ->
                     meaning.definitions.take(MAX_DEFS_PER_POS).map { def ->
@@ -38,9 +43,36 @@ class DictionaryClient {
                 }
                 .distinctBy { it.partOfSpeech to it.meaning }
                 .take(MAX_TOTAL_SENSES)
-
+            val senses = enrichExamples(baseForm.lowercase(), rawSenses)
             if (senses.isEmpty()) null else DictionaryResult(baseForm, senses)
         }.getOrNull()
+    }
+
+    /**
+     * For senses that came back without an `example`, pull from the local kaikki-derived
+     * examples DB. One DB query per POS bucket: senses sharing a POS share the candidate
+     * pool, so distinct senses get distinct sentences (avoids showing the same sentence
+     * under two definitions).
+     */
+    private suspend fun enrichExamples(lemma: String, senses: List<WordSense>): List<WordSense> {
+        val dao = exampleDao ?: return senses
+        val missingByPos = senses
+            .mapIndexedNotNull { idx, s -> if (s.example.isBlank()) idx to s else null }
+            .groupBy { it.second.partOfSpeech }
+        if (missingByPos.isEmpty()) return senses
+
+        val replacements = HashMap<Int, String>()
+        for ((pos, indexed) in missingByPos) {
+            val tag = posToKaikkiTag(pos) ?: continue
+            val candidates = runCatching {
+                dao.byLemmaPos(lemma, tag, limit = indexed.size.coerceAtLeast(1))
+            }.getOrDefault(emptyList())
+            indexed.forEachIndexed { i, (origIdx, _) ->
+                candidates.getOrNull(i)?.let { replacements[origIdx] = it.text }
+            }
+        }
+        if (replacements.isEmpty()) return senses
+        return senses.mapIndexed { i, s -> replacements[i]?.let { s.copy(example = it) } ?: s }
     }
 
     private fun mapPos(pos: String): PartOfSpeech = when (pos.lowercase().trim()) {
@@ -53,6 +85,19 @@ class DictionaryClient {
         "idiom" -> PartOfSpeech.IDIOM
         "phrasal verb" -> PartOfSpeech.PHRASAL_VERB
         else -> PartOfSpeech.OTHER
+    }
+
+    // Mirrors ALLOWED_POS in tools/generate_examples.py — keep both in sync.
+    private fun posToKaikkiTag(pos: PartOfSpeech): String? = when (pos) {
+        PartOfSpeech.NOUN -> "noun"
+        PartOfSpeech.VERB -> "verb"
+        PartOfSpeech.ADJECTIVE -> "adj"
+        PartOfSpeech.ADVERB -> "adv"
+        PartOfSpeech.PRONOUN -> "pron"
+        PartOfSpeech.PREPOSITION -> "prep"
+        PartOfSpeech.IDIOM -> "idiom"
+        PartOfSpeech.PHRASAL_VERB -> "phrase"
+        PartOfSpeech.OTHER -> null
     }
 
     companion object {
