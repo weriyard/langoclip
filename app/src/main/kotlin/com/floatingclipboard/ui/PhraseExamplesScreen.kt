@@ -239,8 +239,8 @@ private fun SenseRow(sense: WordSense) {
         }
         if (sense.example.isNotBlank()) {
             Column(
-                modifier = Modifier.padding(start = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
                     text = "\"${sense.example}\"",
@@ -251,10 +251,11 @@ private fun SenseRow(sense: WordSense) {
                 )
                 if (sense.exampleTranslation.isNotBlank()) {
                     Text(
-                        text = sense.exampleTranslation,
+                        text = "→ ${sense.exampleTranslation}",
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.SansSerif,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
             }

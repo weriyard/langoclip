@@ -41,3 +41,11 @@ local-tmp/
 gen/
 out/
 release/
+
+# Generator artefacts (kaikki dump + local SQLite outputs)
+# — asset wersje są commitowane do app/src/main/assets/
+tools/*.db
+tools/*.db-shm
+tools/*.db-wal
+tools/*.jsonl
+tools/*.jsonl.gz
