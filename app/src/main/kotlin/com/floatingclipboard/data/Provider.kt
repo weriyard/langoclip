@@ -31,6 +31,6 @@ enum class Provider(
 
     companion object {
         fun parse(value: String?): Provider =
-            entries.firstOrNull { it.name == value?.uppercase() } ?: GEMINI
+            entries.firstOrNull { it.name == value?.uppercase() } ?: ANTHROPIC
     }
 }

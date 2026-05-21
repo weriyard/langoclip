@@ -22,7 +22,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = Settings(
-            provider = Provider.GEMINI,
+            provider = Provider.ANTHROPIC,
             geminiApiKey = "",
             isUsingDefaultGeminiKey = true,
             geminiModel = Provider.GEMINI.defaultModel,
