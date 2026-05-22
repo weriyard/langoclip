@@ -39,6 +39,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.floatingclipboard.data.SettingsRepository
 import com.floatingclipboard.data.Tab as DataTab
+import com.floatingclipboard.ui.ChatTabContent
 import com.floatingclipboard.ui.ExamplesTabContent
 import com.floatingclipboard.ui.ExplainTabContent
 import com.floatingclipboard.ui.LogsScreen
@@ -293,10 +294,16 @@ private fun TabbedShell(
                 is DataTab.Examples -> ExamplesTabContent(
                     tab = t,
                     onRegenerate = { viewModel.regenerateExamples(t.id) },
+                    onOpenChat = viewModel::openChatForWord,
                 )
                 is DataTab.WordTranslation -> WordTranslationTabContent(
                     tab = t,
                     onShowExamples = viewModel::showExamplesAsNewTab,
+                )
+                is DataTab.Chat -> ChatTabContent(
+                    tab = t,
+                    onInputChange = { text -> viewModel.setChatInput(t.id, text) },
+                    onSend = { viewModel.sendChatMessage(t.id) },
                 )
                 null -> Unit
             }

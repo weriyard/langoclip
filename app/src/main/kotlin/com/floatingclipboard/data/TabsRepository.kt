@@ -3,6 +3,7 @@ package com.floatingclipboard.data
 import com.floatingclipboard.actions.Action
 import com.floatingclipboard.actions.BreakdownItem
 import com.floatingclipboard.actions.Example
+import com.floatingclipboard.chat.ChatMessage
 import com.floatingclipboard.ui.ActionState
 import com.floatingclipboard.ui.ExamplesState
 import com.floatingclipboard.ui.SensesState
@@ -78,6 +79,26 @@ sealed interface Tab {
         override val isCloseable: Boolean = true
     }
 
+    /**
+     * Vocabulary tutor chat anchored to a specific sense of a word. [messages] is the full
+     * exchange; [streamingAssistant] is non-null while a response is being streamed in (rendered
+     * as a final-position assistant bubble that grows). [input] is held here so the field
+     * survives tab switches and process restarts the same way Paste.text does.
+     */
+    data class Chat(
+        override val id: TabId,
+        val word: String,
+        val meaningEn: String,
+        val meaningPl: String,
+        val messages: List<ChatMessage>,
+        val streamingAssistant: String? = null,
+        val input: String = "",
+        val error: String? = null,
+    ) : Tab {
+        override val label: String = word.take(LABEL_MAX)
+        override val isCloseable: Boolean = true
+    }
+
     companion object {
         val PASTE_ID = TabId(0)
         private const val LABEL_MAX = 25
@@ -148,6 +169,32 @@ class TabsRepository private constructor() {
     fun updateWordTranslation(id: TabId, transform: (Tab.WordTranslation) -> Tab.WordTranslation) {
         _tabs.update { list ->
             list.map { if (it is Tab.WordTranslation && it.id == id) transform(it) else it }
+        }
+    }
+
+    fun openChat(
+        word: String,
+        meaningEn: String,
+        meaningPl: String,
+        initialMessages: List<ChatMessage>,
+    ): TabId {
+        val id = TabId(idGen.getAndIncrement())
+        _tabs.update {
+            it + Tab.Chat(
+                id = id,
+                word = word,
+                meaningEn = meaningEn,
+                meaningPl = meaningPl,
+                messages = initialMessages,
+            )
+        }
+        _selectedId.value = id
+        return id
+    }
+
+    fun updateChat(id: TabId, transform: (Tab.Chat) -> Tab.Chat) {
+        _tabs.update { list ->
+            list.map { if (it is Tab.Chat && it.id == id) transform(it) else it }
         }
     }
 

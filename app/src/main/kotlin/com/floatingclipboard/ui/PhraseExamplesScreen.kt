@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,6 +53,7 @@ import com.floatingclipboard.data.Tab
 fun ExamplesTabContent(
     tab: Tab.Examples,
     onRegenerate: () -> Unit,
+    onOpenChat: (word: String, meaningEn: String, meaningPl: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pullState = rememberPullToRefreshState()
@@ -118,7 +120,12 @@ fun ExamplesTabContent(
                 }
             }
             HorizontalDivider()
-            SensesSection(tab.sensesState)
+            SensesSection(
+                state = tab.sensesState,
+                onOpenChat = { meaningEn, meaningPl ->
+                    onOpenChat(tab.phrase, meaningEn, meaningPl)
+                },
+            )
             HorizontalDivider()
             Text(
                 text = stringResource(R.string.examples_generate_hint),
@@ -169,7 +176,10 @@ fun ExamplesTabContent(
 }
 
 @Composable
-private fun SensesSection(state: SensesState) {
+private fun SensesSection(
+    state: SensesState,
+    onOpenChat: (meaningEn: String, meaningPl: String) -> Unit,
+) {
     when (state) {
         is SensesState.Idle -> Unit
         is SensesState.Loading -> {
@@ -186,7 +196,7 @@ private fun SensesSection(state: SensesState) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (senses.isNotEmpty()) SensesList(senses)
+                if (senses.isNotEmpty()) SensesList(senses, onOpenChat)
             }
         }
         is SensesState.Success -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -195,17 +205,23 @@ private fun SensesSection(state: SensesState) {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            SensesList(state.senses)
+            SensesList(state.senses, onOpenChat)
         }
         is SensesState.Error -> Unit  // silent — senses are supplementary
     }
 }
 
 @Composable
-private fun SensesList(senses: List<WordSense>) {
+private fun SensesList(
+    senses: List<WordSense>,
+    onOpenChat: (meaningEn: String, meaningPl: String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         senses.forEachIndexed { i, sense ->
-            SenseRow(sense)
+            SenseRow(
+                sense = sense,
+                onOpenChat = { onOpenChat(sense.meaning, sense.meaningTranslation) },
+            )
             if (i < senses.size - 1) {
                 HorizontalDivider(
                     thickness = 0.5.dp,
@@ -217,7 +233,7 @@ private fun SensesList(senses: List<WordSense>) {
 }
 
 @Composable
-private fun SenseRow(sense: WordSense) {
+private fun SenseRow(sense: WordSense, onOpenChat: () -> Unit) {
     val color = colorForPartOfSpeech(sense.partOfSpeech)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // POS chip — single anchor for the whole sense.
@@ -250,6 +266,19 @@ private fun SenseRow(sense: WordSense) {
                 primaryEn = "“${sense.example}”",
                 primaryPl = sense.exampleTranslation,
                 primaryItalic = true,
+                trailingAction = {
+                    IconButton(
+                        onClick = onOpenChat,
+                        modifier = Modifier.size(28.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = "Otwórz chat o tym słowie",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                },
             )
         }
     }
@@ -267,6 +296,7 @@ private fun SectionBlock(
     primaryEn: String,
     primaryPl: String,
     primaryItalic: Boolean,
+    trailingAction: (@Composable () -> Unit)? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -284,6 +314,9 @@ private fun SectionBlock(
                 fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.outline,
             )
+            if (trailingAction != null) {
+                trailingAction()
+            }
         }
         Text(
             text = primaryEn,

@@ -49,7 +49,12 @@ class AnthropicClient(
                 header(HEADER_API_KEY, apiKey)
                 header(HEADER_VERSION, ANTHROPIC_VERSION)
                 contentType(ContentType.Application.Json)
-                setBody(buildRequest(systemPrompt, userPrompt, jsonSchema, stream = false))
+                setBody(buildRequest(
+                    systemPrompt,
+                    listOf(AnthropicMessage(role = "user", content = userPrompt)),
+                    jsonSchema,
+                    stream = false,
+                ))
             }
             when (val code = response.status.value) {
                 401, 403 -> throw LlmError.Unauthorized
@@ -72,6 +77,29 @@ class AnthropicClient(
         systemPrompt: String,
         userPrompt: String,
         jsonSchema: JsonElement?,
+    ): Flow<String> = streamMessages(
+        systemPrompt,
+        listOf(AnthropicMessage(role = "user", content = userPrompt)),
+        jsonSchema,
+    )
+
+    /**
+     * Multi-turn streaming. Each [ChatTurn] is mapped to an Anthropic message; full conversation
+     * history must be passed every call (the API is stateless). The Flow emits text deltas exactly
+     * like single-shot [stream], so callers can append into a StringBuilder and rebuild the
+     * assistant turn progressively.
+     */
+    fun streamChat(systemPrompt: String, turns: List<ChatTurn>): Flow<String> =
+        streamMessages(
+            systemPrompt,
+            turns.map { AnthropicMessage(role = it.role, content = it.content) },
+            jsonSchema = null,
+        )
+
+    private fun streamMessages(
+        systemPrompt: String,
+        messages: List<AnthropicMessage>,
+        jsonSchema: JsonElement?,
     ): Flow<String> = flow {
         if (apiKey.isBlank()) throw LlmError.MissingApiKey
         val parser = Json { ignoreUnknownKeys = true }
@@ -80,7 +108,7 @@ class AnthropicClient(
             header(HEADER_API_KEY, apiKey)
             header(HEADER_VERSION, ANTHROPIC_VERSION)
             contentType(ContentType.Application.Json)
-            setBody(buildRequest(systemPrompt, userPrompt, jsonSchema, stream = true))
+            setBody(buildRequest(systemPrompt, messages, jsonSchema, stream = true))
         }.execute { response ->
             if (!response.status.isSuccess()) {
                 val body = runCatching { response.bodyAsText() }.getOrDefault("")
@@ -113,13 +141,13 @@ class AnthropicClient(
 
     private fun buildRequest(
         systemPrompt: String,
-        userPrompt: String,
+        messages: List<AnthropicMessage>,
         jsonSchema: JsonElement?,
         stream: Boolean,
     ) = AnthropicRequest(
         model = model,
         system = systemPrompt.takeIf { it.isNotBlank() },
-        messages = listOf(AnthropicMessage(role = "user", content = userPrompt)),
+        messages = messages,
         maxTokens = MAX_TOKENS,
         stream = stream,
         // GA structured outputs — schema constraint at the tokenization level.
@@ -151,6 +179,9 @@ class AnthropicClient(
         private const val MAX_TOKENS = 8192
     }
 }
+
+/** Single turn in a multi-turn chat — role is "user" or "assistant" per Anthropic's API. */
+data class ChatTurn(val role: String, val content: String)
 
 @Serializable
 private data class AnthropicRequest(

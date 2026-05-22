@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
@@ -142,6 +143,7 @@ private fun TabsListItem(
                     stringResource(R.string.tab_subtitle_examples_variant, tab.variant + 1)
                 else stringResource(R.string.tab_subtitle_examples)
                 is Tab.WordTranslation -> "Tłumaczenie słowa"
+                is Tab.Chat -> "Chat o słowie"
             }
             Text(
                 text = subtitle,
@@ -174,5 +176,6 @@ private fun iconFor(tab: Tab): ImageVector = when (tab) {
     is Tab.Explain -> Icons.AutoMirrored.Filled.MenuBook
     is Tab.Examples -> Icons.Default.Translate
     is Tab.WordTranslation -> Icons.Default.Translate
+    is Tab.Chat -> Icons.AutoMirrored.Filled.Chat
 }
 

@@ -10,9 +10,12 @@ import com.floatingclipboard.actions.Action
 import com.floatingclipboard.actions.ActionResult
 import com.floatingclipboard.actions.ActionRunner
 import com.floatingclipboard.actions.PromptLoader
+import com.floatingclipboard.chat.ChatMessage
 import com.floatingclipboard.data.LlmCache
 import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.SettingsRepository
+import com.floatingclipboard.llm.AnthropicClient
+import com.floatingclipboard.llm.ChatTurn
 import com.floatingclipboard.data.Tab
 import com.floatingclipboard.data.Tab.Companion.PASTE_ID
 import com.floatingclipboard.data.TabId
@@ -26,6 +29,7 @@ import com.floatingclipboard.translation.TranslationOrchestrator
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -169,7 +173,104 @@ class TabsViewModel(
         // Not stored in jobs — senses aren't cancelled on swipe-to-refresh
     }
 
+    // === Chat operations ===
+
+    /**
+     * Opens a vocabulary-tutor chat tab anchored to one sense of a word. Seeds the conversation
+     * with a Polish greeting so the user sees what they can ask, then waits for their input.
+     */
+    fun openChatForWord(word: String, meaningEn: String, meaningPl: String) {
+        val cleanWord = word.trim()
+        if (cleanWord.isBlank()) return
+        val greeting = ChatMessage(
+            role = ChatMessage.Role.ASSISTANT,
+            content = buildString {
+                append("Pomogę Ci lepiej zrozumieć słowo **").append(cleanWord).append("** ")
+                if (meaningEn.isNotBlank()) append("w znaczeniu „").append(meaningEn).append("\" ")
+                if (meaningPl.isNotBlank()) append("(").append(meaningPl).append(") ")
+                append("\n\nSpytaj o synonimy, kolokacje, idiomy, przykłady w różnych kontekstach albo o cokolwiek związanego z tym słowem.")
+            },
+        )
+        tabs.openChat(
+            word = cleanWord,
+            meaningEn = meaningEn,
+            meaningPl = meaningPl,
+            initialMessages = listOf(greeting),
+        )
+    }
+
+    fun setChatInput(tabId: TabId, text: String) {
+        tabs.updateChat(tabId) { it.copy(input = text) }
+    }
+
+    /**
+     * Appends the current input as a user turn and streams the assistant reply. Anthropic is
+     * always used (Haiku) regardless of the configured provider, to keep chat latency/cost
+     * predictable and aligned with the rest of the tutor pipeline.
+     */
+    fun sendChatMessage(tabId: TabId) {
+        val chat = tabs.tabs.value.firstOrNull { it.id == tabId } as? Tab.Chat ?: return
+        val text = chat.input.trim()
+        if (text.isBlank() || chat.streamingAssistant != null) return
+
+        val userMsg = ChatMessage(ChatMessage.Role.USER, text)
+        tabs.updateChat(tabId) {
+            it.copy(
+                messages = it.messages + userMsg,
+                input = "",
+                streamingAssistant = "",
+                error = null,
+            )
+        }
+
+        val job = viewModelScope.launch {
+            val settings = runner.settings.first()
+            val systemPrompt = buildChatSystemPrompt(chat.word, chat.meaningEn, chat.meaningPl)
+            val turns = (chat.messages + userMsg).map { m ->
+                ChatTurn(
+                    role = if (m.role == ChatMessage.Role.USER) "user" else "assistant",
+                    content = m.content,
+                )
+            }
+
+            val builder = StringBuilder()
+            val result = runCatching {
+                val client = AnthropicClient(settings.anthropicApiKey, CHAT_MODEL)
+                client.streamChat(systemPrompt, turns).collect { delta ->
+                    builder.append(delta)
+                    tabs.updateChat(tabId) { it.copy(streamingAssistant = builder.toString()) }
+                }
+            }
+            tabs.updateChat(tabId) { cur ->
+                val finalText = builder.toString()
+                val withAssistant =
+                    if (finalText.isNotBlank()) {
+                        cur.messages + ChatMessage(ChatMessage.Role.ASSISTANT, finalText)
+                    } else cur.messages
+                cur.copy(
+                    messages = withAssistant,
+                    streamingAssistant = null,
+                    error = result.exceptionOrNull()?.message,
+                )
+            }
+        }
+        tabs.putJob(tabId, job)
+    }
+
+    private fun buildChatSystemPrompt(word: String, meaningEn: String, meaningPl: String): String =
+        """
+You are an English tutor helping a Polish-speaking learner explore vocabulary in depth.
+
+The user is studying the English word: "$word"
+${if (meaningEn.isNotBlank()) "Sense (EN): \"$meaningEn\"" else ""}
+${if (meaningPl.isNotBlank()) "Polish translation: \"$meaningPl\"" else ""}
+
+Help the user understand this word in depth. They may ask for more example sentences, related expressions, common collocations, usage notes, register, etymology, or synonyms/antonyms. If the user writes in Polish, reply in Polish — but always show English usage examples with Polish translations directly beneath them. Keep replies concise and concrete; prefer bullet points and short paragraphs over long prose.
+        """.trimIndent()
+
     companion object {
+        private const val CHAT_MODEL = "claude-haiku-4-5-20251001"
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
