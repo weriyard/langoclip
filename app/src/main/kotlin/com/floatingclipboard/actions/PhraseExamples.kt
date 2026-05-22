@@ -10,6 +10,7 @@ data class WordSense(
     val meaning: String,
     val example: String,
     val exampleTranslation: String,
+    val meaningTranslation: String = "",
 )
 
 data class Example(

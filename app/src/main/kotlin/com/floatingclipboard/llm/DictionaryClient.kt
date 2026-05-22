@@ -2,6 +2,7 @@ package com.floatingclipboard.llm
 
 import com.floatingclipboard.actions.PartOfSpeech
 import com.floatingclipboard.actions.WordSense
+import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.example.ExampleDao
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -17,7 +18,10 @@ import kotlinx.serialization.Serializable
  * from the local Wiktionary-derived examples database — fills the common gap where
  * dictionaryapi.dev returns a definition but no usage sentence.
  */
-class DictionaryClient(private val exampleDao: ExampleDao? = null) {
+class DictionaryClient(
+    private val exampleDao: ExampleDao? = null,
+    private val logStore: LogStore? = null,
+) {
 
     suspend fun lookup(word: String): DictionaryResult? {
         val clean = word.trim().lowercase()
@@ -63,12 +67,22 @@ class DictionaryClient(private val exampleDao: ExampleDao? = null) {
 
         val replacements = HashMap<Int, String>()
         for ((pos, indexed) in missingByPos) {
-            val tag = posToKaikkiTag(pos) ?: continue
+            val tag = posToKaikkiTag(pos)
+            if (tag == null) {
+                logStore?.d(TAG, "kaikki SKIP lemma=$lemma pos=$pos (no kaikki mapping)")
+                continue
+            }
             val candidates = runCatching {
                 dao.byLemmaPos(lemma, tag, limit = indexed.size.coerceAtLeast(1))
             }.getOrDefault(emptyList())
+            if (candidates.isEmpty()) {
+                logStore?.d(TAG, "kaikki MISS lemma=$lemma pos=$tag (${indexed.size} sense${if (indexed.size > 1) "s" else ""} blank)")
+                continue
+            }
             indexed.forEachIndexed { i, (origIdx, _) ->
-                candidates.getOrNull(i)?.let { replacements[origIdx] = it.text }
+                val ex = candidates.getOrNull(i) ?: return@forEachIndexed
+                replacements[origIdx] = ex.text
+                logStore?.d(TAG, "kaikki HIT  lemma=$lemma pos=$tag → '${ex.text.take(60)}'")
             }
         }
         if (replacements.isEmpty()) return senses
@@ -101,6 +115,7 @@ class DictionaryClient(private val exampleDao: ExampleDao? = null) {
     }
 
     companion object {
+        private const val TAG = "Senses"
         private const val BASE_URL = "https://api.dictionaryapi.dev/api/v2/entries/en"
         private const val MAX_DEFS_PER_POS = 2
         private const val MAX_TOTAL_SENSES = 8

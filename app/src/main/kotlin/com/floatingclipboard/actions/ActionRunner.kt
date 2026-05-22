@@ -2,6 +2,7 @@ package com.floatingclipboard.actions
 
 import com.floatingclipboard.data.LlmCache
 import com.floatingclipboard.data.LogStore
+import com.floatingclipboard.data.Provider
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
 import com.floatingclipboard.data.example.ExampleDao
@@ -41,7 +42,7 @@ class ActionRunner(
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
-    private val dictionary = DictionaryClient(exampleDao)
+    private val dictionary = DictionaryClient(exampleDao, logs)
 
     val settings: Flow<Settings> get() = settingsRepository.settings
 
@@ -251,32 +252,30 @@ class ActionRunner(
         }
         val dictResult = dictionary.lookup(phrase)
         if (dictResult != null) {
-            logs.d(TAG, "DICT HIT senses phrase='${phrase.take(40)}' senses=${dictResult.senses.size}")
+            logs.d(TAG_SENSES, "phrase=\"$phrase\" → dictionaryapi ${dictResult.senses.size} senses (baseForm=${dictResult.baseForm})")
             // Show all senses immediately with empty translations — UI shows English right away.
             emit(SensesState.Success(dictResult.senses, dictResult.baseForm))
-            // Translate sequentially so the UI can emit a progressive update after each sense
-            // instead of one big wait at the end.
+            // Translate sequentially so the UI can emit a progressive update after each sense.
             val enriched = mutableListOf<com.floatingclipboard.actions.WordSense>()
             val total = dictResult.senses.size
+            val startedAll = System.currentTimeMillis()
+            var generated = 0
             for ((idx, s) in dictResult.senses.withIndex()) {
-                val updated = if (s.example.isBlank()) {
-                    s
-                } else {
-                    logs.d(TAG, "  sense ${idx + 1}/$total: translating '${s.example.take(40)}'")
-                    s.copy(exampleTranslation = translateExample(s.example, settings))
-                }
+                val updated = completeSense(dictResult.baseForm, s, settings, idx, total)
+                if (s.example.isBlank() && updated.example.isNotBlank()) generated++
                 enriched += updated
-                // Emit partial: already-translated + remaining originals (still English-only).
                 val current = enriched + dictResult.senses.drop(idx + 1)
                 emit(SensesState.Success(current, dictResult.baseForm))
             }
-            logs.d(TAG, "DICT senses translated: ${enriched.count { it.exampleTranslation.isNotBlank() }}/${enriched.size}")
+            val elapsedAll = System.currentTimeMillis() - startedAll
+            logs.d(TAG_SENSES, "done $total/$total, ${elapsedAll}ms, $generated generated, ${total - generated} translated only")
             val dto = SensesResponseDto(
                 baseForm = dictResult.baseForm,
                 senses = enriched.map { s ->
                     SenseDto(
                         partOfSpeech = s.partOfSpeech.name,
                         meaning = s.meaning,
+                        meaningTranslation = s.meaningTranslation,
                         example = s.example,
                         exampleTranslation = s.exampleTranslation,
                     )
@@ -497,34 +496,85 @@ class ActionRunner(
         return null
     }
 
-    private suspend fun translateExample(example: String, settings: Settings): String {
-        val cleanInput = example.trim()
-        val cacheKey = LlmCache.keyFor(CACHE_VERSION, "EXAMPLE_TRANSLATE:${settings.provider.name}", "", cleanInput.lowercase())
-        cache.get(cacheKey)?.let {
-            logs.d(TAG, "translateExample: CACHE  '${cleanInput.take(50)}' → '${it.take(50)}'")
-            return it
-        }
-
+    /**
+     * One Haiku JSON call per sense covering both translation (`meaning` + `example` → PL) and
+     * — when [WordSense.example] is blank — generation of a fresh English example sentence.
+     *
+     * Always uses Anthropic Haiku regardless of the configured provider, since the orchestration
+     * chain (dictionaryapi.dev → en_examples.db → here) is structured around Anthropic latency/cost.
+     * Returns the original sense unchanged when the call fails or parses garbage — UI degrades to
+     * the EN-only state, no exception thrown to the caller.
+     */
+    private suspend fun completeSense(
+        lemma: String,
+        sense: com.floatingclipboard.actions.WordSense,
+        settings: Settings,
+        idx: Int,
+        total: Int,
+    ): com.floatingclipboard.actions.WordSense {
+        if (sense.meaning.isBlank()) return sense
+        val pos = sense.partOfSpeech.name.lowercase()
+        val hasExample = sense.example.isNotBlank()
+        val mode = if (hasExample) "translate(meaning+example)" else "generate(example)+translate(meaning+example)"
+        val source = if (hasExample) "API or kaikki" else "no example → generate"
+        logs.d(TAG_SENSES, "[${idx + 1}/$total] $lemma ($pos) \"${sense.meaning.take(60)}\" → $source")
         val started = System.currentTimeMillis()
-        val translation = runCatching {
-            val client = createLlmClient(settings, HAIKU_MODEL)
+
+        val userPrompt = if (hasExample) """
+For the English word "$lemma":
+EN meaning: "${sense.meaning}"
+EN example: "${sense.example}"
+
+Translate both to Polish. Respond ONLY with this JSON object, nothing else:
+{
+  "meaningPl": "Polish translation of the meaning",
+  "example": "${sense.example}",
+  "examplePl": "Polish translation of the example sentence"
+}
+""".trimIndent()
+        else """
+For the English word "$lemma":
+EN meaning: "${sense.meaning}"
+
+There is no example sentence. Produce ONE short English sentence (max 15 words) using "$lemma" in this exact sense, then translate everything to Polish.
+
+Respond ONLY with this JSON object, nothing else:
+{
+  "meaningPl": "Polish translation of the meaning",
+  "example": "the new English example sentence using $lemma",
+  "examplePl": "Polish translation of the example sentence"
+}
+""".trimIndent()
+
+        val raw = runCatching {
+            // Always Anthropic Haiku — provider override keeps this independent of user settings.
+            val client = createLlmClient(settings.copy(provider = Provider.ANTHROPIC), HAIKU_MODEL)
             val builder = StringBuilder()
             client.stream(
-                "Translate English to Polish. Respond with only the Polish translation, nothing else.",
-                cleanInput,
+                "You are a translation API. Respond with valid JSON only — no prose, no markdown fences.",
+                userPrompt,
                 null,
             ).collect { delta -> builder.append(delta) }
             builder.toString().trim()
-        }.onFailure { logs.w(TAG, "translateExample: HAIKU failed: ${it.message}") }
-            .getOrElse { "" }
-        val elapsed = System.currentTimeMillis() - started
-        if (translation.isNotBlank()) {
-            logs.d(TAG, "translateExample: HAIKU ${elapsed}ms '${cleanInput.take(50)}' → '${translation.take(50)}'")
-            cache.put(cacheKey, translation)
-        } else {
-            logs.w(TAG, "translateExample: EMPTY ${elapsed}ms for '${cleanInput.take(50)}'")
+        }.onFailure { logs.w(TAG_SENSES, "[${idx + 1}/$total] Haiku FAILED: ${it.message}") }
+            .getOrNull()
+
+        if (raw.isNullOrBlank()) {
+            logs.w(TAG_SENSES, "[${idx + 1}/$total] empty response")
+            return sense
         }
-        return translation
+        val cleaned = stripMarkdownWrap(raw).trim()
+        val dto = runCatching { json.decodeFromString<SenseCompletionDto>(cleaned) }
+            .onFailure { logs.w(TAG_SENSES, "[${idx + 1}/$total] parse FAILED: ${it.message?.take(80)} raw='${cleaned.take(120)}'") }
+            .getOrNull() ?: return sense
+
+        val elapsed = System.currentTimeMillis() - started
+        logs.d(TAG_SENSES, "[${idx + 1}/$total] Haiku $mode ${elapsed}ms")
+        return sense.copy(
+            meaningTranslation = dto.meaningPl.ifBlank { sense.meaningTranslation },
+            example = dto.example.ifBlank { sense.example },
+            exampleTranslation = dto.examplePl.ifBlank { sense.exampleTranslation },
+        )
     }
 
     private fun stripMarkdownWrap(raw: String): String {
@@ -540,10 +590,11 @@ class ActionRunner(
     }
 
     companion object {
-        // v7: Anthropic now uses toAnthropicSchema (keeps minItems/maxItems for examples);
-        // variant prompts use themed diversity; StreamingArrayParser handles whitespace in markers.
-        private const val CACHE_VERSION = "v7"
+        // v8: senses now carry meaningTranslation alongside exampleTranslation; old v7 cached
+        // entries are reachable but would deserialize with empty PL meaning — bumping forces refresh.
+        private const val CACHE_VERSION = "v8"
         private const val TAG = "LLM"
+        private const val TAG_SENSES = "Senses"
         private const val HAIKU_MODEL = "claude-haiku-4-5-20251001"
 
         private val CONTEXT_THEMES = listOf(
@@ -611,6 +662,7 @@ private data class SenseDto(
     val meaning: String = "",
     val example: String = "",
     val exampleTranslation: String = "",
+    val meaningTranslation: String = "",
 )
 
 private fun SenseDto.toDomain() = WordSense(
@@ -618,6 +670,14 @@ private fun SenseDto.toDomain() = WordSense(
     meaning = meaning,
     example = example,
     exampleTranslation = exampleTranslation,
+    meaningTranslation = meaningTranslation,
+)
+
+@Serializable
+private data class SenseCompletionDto(
+    val meaningPl: String = "",
+    val example: String = "",
+    val examplePl: String = "",
 )
 
 /**

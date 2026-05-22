@@ -41,7 +41,7 @@ class TranslationOrchestrator(
     private val exampleDao: ExampleDao? = null,
     private val logStore: LogStore? = null,
 ) {
-    private val dictionary = DictionaryClient(exampleDao)
+    private val dictionary = DictionaryClient(exampleDao, logStore)
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
     suspend fun translate(token: String, sentence: String): TranslationResult {

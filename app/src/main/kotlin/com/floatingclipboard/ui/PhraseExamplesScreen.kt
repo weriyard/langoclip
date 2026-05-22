@@ -237,6 +237,15 @@ private fun SenseRow(sense: WordSense) {
                 modifier = Modifier.weight(1f),
             )
         }
+        if (sense.meaningTranslation.isNotBlank()) {
+            Text(
+                text = "→ ${sense.meaningTranslation}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = FontFamily.SansSerif,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp),
+            )
+        }
         if (sense.example.isNotBlank()) {
             Column(
                 modifier = Modifier.padding(start = 4.dp, top = 2.dp),
