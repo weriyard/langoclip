@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -411,6 +413,8 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.settings_show_logs)) }
 
+            SourceLegend()
+
             Text(stringResource(R.string.settings_shortcuts_header), style = MaterialTheme.typography.titleMedium)
             Text(
                 stringResource(R.string.settings_shortcuts_desc),
@@ -422,6 +426,53 @@ fun SettingsScreen(
                 onClick = { pinShortcutToHome(context, shortcutUnsupportedMsg) },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.settings_pin_to_home)) }
+        }
+    }
+}
+
+/**
+ * Legend for the two-letter source codes shown in Examples → ZNACZENIE/ZASTOSOWANIE headers.
+ * Lives in Settings so the per-sense chips stay tiny and uncluttered.
+ */
+@Composable
+private fun SourceLegend() {
+    Text(
+        "Skróty źródeł (Przykłady)",
+        style = MaterialTheme.typography.titleMedium,
+    )
+    Text(
+        "W zakładce Przykłady, obok ZNACZENIE i ZASTOSOWANIE pokazane są skróty informujące skąd pochodzi tekst EN i tłumaczenie PL.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    val entries = listOf(
+        "DA" to "dictionaryapi.dev (słownik EN online)",
+        "KA" to "kaikki / Wiktionary (lokalna baza w aplikacji)",
+        "HA" to "Haiku — tłumaczenie EN → PL",
+        "HG" to "Haiku — wygenerowane (gdy słownik nie miał przykładu)",
+        "—"  to "brak danych / jeszcze nie pobrane",
+    )
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.padding(start = 4.dp),
+    ) {
+        entries.forEach { (code, desc) ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = code,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(end = 12.dp)
+                        .widthIn(min = 28.dp),
+                )
+                Text(
+                    text = desc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

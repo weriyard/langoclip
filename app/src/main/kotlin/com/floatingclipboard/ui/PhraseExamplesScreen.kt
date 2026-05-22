@@ -305,23 +305,22 @@ private fun SectionBlock(
     }
 }
 
-/**
- * Meaning's EN is always dictionaryapi.dev; PL is Haiku when filled, "—" when the call hasn't
- * landed yet so the user knows what's missing rather than seeing an empty corner.
- */
+// Source codes used in SenseRow chips — see SettingsScreen for the legend rendered to the user.
+// DA = dictionaryapi.dev, KA = kaikki (local Wiktionary DB),
+// HA = Haiku translation, HG = Haiku generated, — = pending / unavailable.
 private fun meaningSourceLabel(sense: WordSense): String {
-    val pl = if (sense.meaningTranslation.isNotBlank()) "Haiku" else "—"
-    return "EN: dictionaryapi · PL: $pl"
+    val pl = if (sense.meaningTranslation.isNotBlank()) "HA" else "—"
+    return "EN: DA · PL: $pl"
 }
 
 private fun exampleSourceLabel(sense: WordSense): String {
     val en = when (sense.exampleSource) {
-        com.floatingclipboard.actions.ExampleSource.API -> "dictionaryapi"
-        com.floatingclipboard.actions.ExampleSource.KAIKKI -> "kaikki"
-        com.floatingclipboard.actions.ExampleSource.GENERATED -> "Haiku (gen)"
+        com.floatingclipboard.actions.ExampleSource.API -> "DA"
+        com.floatingclipboard.actions.ExampleSource.KAIKKI -> "KA"
+        com.floatingclipboard.actions.ExampleSource.GENERATED -> "HG"
         com.floatingclipboard.actions.ExampleSource.NONE -> "—"
     }
-    val pl = if (sense.exampleTranslation.isNotBlank()) "Haiku" else "—"
+    val pl = if (sense.exampleTranslation.isNotBlank()) "HA" else "—"
     return "EN: $en · PL: $pl"
 }
 
