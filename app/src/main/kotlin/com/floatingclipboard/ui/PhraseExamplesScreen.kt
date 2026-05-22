@@ -203,105 +203,126 @@ private fun SensesSection(state: SensesState) {
 
 @Composable
 private fun SensesList(senses: List<WordSense>) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        senses.forEach { sense -> SenseRow(sense) }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        senses.forEachIndexed { i, sense ->
+            SenseRow(sense)
+            if (i < senses.size - 1) {
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun SenseRow(sense: WordSense) {
     val color = colorForPartOfSpeech(sense.partOfSpeech)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        // ── Meaning block ────────────────────────────────────────────────────────
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // POS chip — single anchor for the whole sense.
+        Surface(
+            color = color.copy(alpha = 0.15f),
+            shape = MaterialTheme.shapes.extraSmall,
         ) {
-            Surface(
-                color = color.copy(alpha = 0.15f),
-                shape = MaterialTheme.shapes.extraSmall,
-            ) {
-                Text(
-                    text = sense.partOfSpeech.label.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = color,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                )
-            }
             Text(
-                text = sense.meaning,
-                style = MaterialTheme.typography.bodyMedium,
+                text = sense.partOfSpeech.label.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+                fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.SansSerif,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
-        if (sense.meaningTranslation.isNotBlank()) {
+        // ── Meaning block ────────────────────────────────────────────────────────
+        SectionBlock(
+            title = "ZNACZENIE",
+            sourceLabel = meaningSourceLabel(sense),
+            primaryEn = sense.meaning,
+            primaryPl = sense.meaningTranslation,
+            primaryItalic = false,
+        )
+        // ── Example block — skipped when nothing to show ─────────────────────────
+        if (sense.example.isNotBlank()) {
+            SectionBlock(
+                title = "ZASTOSOWANIE",
+                sourceLabel = exampleSourceLabel(sense),
+                primaryEn = "“${sense.example}”",
+                primaryPl = sense.exampleTranslation,
+                primaryItalic = true,
+            )
+        }
+    }
+}
+
+/**
+ * Section inside a single sense (meaning OR example). Header on the left, source attribution on
+ * the right; EN line below, PL translation under it (skipped when empty so a half-done sense
+ * doesn't show a stray "→ ").
+ */
+@Composable
+private fun SectionBlock(
+    title: String,
+    sourceLabel: String,
+    primaryEn: String,
+    primaryPl: String,
+    primaryItalic: Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "→ ${sense.meaningTranslation}",
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.SansSerif,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = sourceLabel,
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.outline,
+            )
+        }
+        Text(
+            text = primaryEn,
+            style = MaterialTheme.typography.bodyMedium,
+            fontStyle = if (primaryItalic) FontStyle.Italic else FontStyle.Normal,
+            fontFamily = FontFamily.SansSerif,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+        if (primaryPl.isNotBlank()) {
+            Text(
+                text = "→ $primaryPl",
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = FontFamily.SansSerif,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp),
             )
         }
-        // ── Example block ────────────────────────────────────────────────────────
-        if (sense.example.isNotBlank()) {
-            HorizontalDivider(
-                modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 2.dp),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-            Row(
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(start = 4.dp),
-            ) {
-                Text(
-                    text = "“${sense.example}”",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontStyle = FontStyle.Italic,
-                    fontFamily = FontFamily.SansSerif,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
-                SourceChip(sense.exampleSource)
-            }
-            if (sense.exampleTranslation.isNotBlank()) {
-                Text(
-                    text = "→ ${sense.exampleTranslation}",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.SansSerif,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-            }
-        }
     }
 }
 
 /**
- * Small, low-contrast provenance badge next to an English example. Renders nothing for
- * [com.floatingclipboard.actions.ExampleSource.NONE] so the layout stays clean when there's
- * no example at all.
+ * Meaning's EN is always dictionaryapi.dev; PL is Haiku when filled, "—" when the call hasn't
+ * landed yet so the user knows what's missing rather than seeing an empty corner.
  */
-@Composable
-private fun SourceChip(source: com.floatingclipboard.actions.ExampleSource) {
-    val label = when (source) {
-        com.floatingclipboard.actions.ExampleSource.API -> "api"
+private fun meaningSourceLabel(sense: WordSense): String {
+    val pl = if (sense.meaningTranslation.isNotBlank()) "Haiku" else "—"
+    return "EN: dictionaryapi · PL: $pl"
+}
+
+private fun exampleSourceLabel(sense: WordSense): String {
+    val en = when (sense.exampleSource) {
+        com.floatingclipboard.actions.ExampleSource.API -> "dictionaryapi"
         com.floatingclipboard.actions.ExampleSource.KAIKKI -> "kaikki"
-        com.floatingclipboard.actions.ExampleSource.GENERATED -> "gen"
-        com.floatingclipboard.actions.ExampleSource.NONE -> return
+        com.floatingclipboard.actions.ExampleSource.GENERATED -> "Haiku (gen)"
+        com.floatingclipboard.actions.ExampleSource.NONE -> "—"
     }
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelSmall,
-        fontFamily = FontFamily.Monospace,
-        color = MaterialTheme.colorScheme.outline,
-        modifier = Modifier.padding(top = 1.dp),
-    )
+    val pl = if (sense.exampleTranslation.isNotBlank()) "Haiku" else "—"
+    return "EN: $en · PL: $pl"
 }
 
 private fun highlightedEnglish(
