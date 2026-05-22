@@ -1,5 +1,6 @@
 package com.floatingclipboard.llm
 
+import com.floatingclipboard.actions.ExampleSource
 import com.floatingclipboard.actions.PartOfSpeech
 import com.floatingclipboard.actions.WordSense
 import com.floatingclipboard.data.LogStore
@@ -37,11 +38,13 @@ class DictionaryClient(
                 .flatMap { it.meanings }
                 .flatMap { meaning ->
                     meaning.definitions.take(MAX_DEFS_PER_POS).map { def ->
+                        val ex = def.example.orEmpty()
                         WordSense(
                             partOfSpeech = mapPos(meaning.partOfSpeech),
                             meaning = def.definition,
-                            example = def.example.orEmpty(),
+                            example = ex,
                             exampleTranslation = "",
+                            exampleSource = if (ex.isBlank()) ExampleSource.NONE else ExampleSource.API,
                         )
                     }
                 }
@@ -86,7 +89,9 @@ class DictionaryClient(
             }
         }
         if (replacements.isEmpty()) return senses
-        return senses.mapIndexed { i, s -> replacements[i]?.let { s.copy(example = it) } ?: s }
+        return senses.mapIndexed { i, s ->
+            replacements[i]?.let { s.copy(example = it, exampleSource = ExampleSource.KAIKKI) } ?: s
+        }
     }
 
     private fun mapPos(pos: String): PartOfSpeech = when (pos.lowercase().trim()) {

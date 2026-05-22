@@ -278,6 +278,7 @@ class ActionRunner(
                         meaningTranslation = s.meaningTranslation,
                         example = s.example,
                         exampleTranslation = s.exampleTranslation,
+                        exampleSource = s.exampleSource.name,
                     )
                 },
             )
@@ -570,10 +571,19 @@ Respond ONLY with this JSON object, nothing else:
 
         val elapsed = System.currentTimeMillis() - started
         logs.d(TAG_SENSES, "[${idx + 1}/$total] Haiku $mode ${elapsed}ms")
+        val finalExample = dto.example.ifBlank { sense.example }
+        val finalSource = when {
+            // Keep upstream attribution (API or KAIKKI) — completeSense only translates in that case.
+            sense.exampleSource != ExampleSource.NONE -> sense.exampleSource
+            // Was blank, Haiku produced one — mark as generated.
+            finalExample.isNotBlank() -> ExampleSource.GENERATED
+            else -> ExampleSource.NONE
+        }
         return sense.copy(
             meaningTranslation = dto.meaningPl.ifBlank { sense.meaningTranslation },
-            example = dto.example.ifBlank { sense.example },
+            example = finalExample,
             exampleTranslation = dto.examplePl.ifBlank { sense.exampleTranslation },
+            exampleSource = finalSource,
         )
     }
 
@@ -590,9 +600,9 @@ Respond ONLY with this JSON object, nothing else:
     }
 
     companion object {
-        // v8: senses now carry meaningTranslation alongside exampleTranslation; old v7 cached
-        // entries are reachable but would deserialize with empty PL meaning — bumping forces refresh.
-        private const val CACHE_VERSION = "v8"
+        // v9: senses now also carry `exampleSource` so the UI can show provenance chips.
+        // v8 entries deserialize cleanly (default empty → NONE) but lose the badge, so we bump.
+        private const val CACHE_VERSION = "v9"
         private const val TAG = "LLM"
         private const val TAG_SENSES = "Senses"
         private const val HAIKU_MODEL = "claude-haiku-4-5-20251001"
@@ -663,6 +673,7 @@ private data class SenseDto(
     val example: String = "",
     val exampleTranslation: String = "",
     val meaningTranslation: String = "",
+    val exampleSource: String = "",
 )
 
 private fun SenseDto.toDomain() = WordSense(
@@ -671,6 +682,9 @@ private fun SenseDto.toDomain() = WordSense(
     example = example,
     exampleTranslation = exampleTranslation,
     meaningTranslation = meaningTranslation,
+    exampleSource = runCatching {
+        com.floatingclipboard.actions.ExampleSource.valueOf(exampleSource)
+    }.getOrDefault(com.floatingclipboard.actions.ExampleSource.NONE),
 )
 
 @Serializable

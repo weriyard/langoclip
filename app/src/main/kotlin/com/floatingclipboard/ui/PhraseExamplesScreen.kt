@@ -212,6 +212,7 @@ private fun SensesList(senses: List<WordSense>) {
 private fun SenseRow(sense: WordSense) {
     val color = colorForPartOfSpeech(sense.partOfSpeech)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // ── Meaning block ────────────────────────────────────────────────────────
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -246,30 +247,61 @@ private fun SenseRow(sense: WordSense) {
                 modifier = Modifier.padding(start = 4.dp),
             )
         }
+        // ── Example block ────────────────────────────────────────────────────────
         if (sense.example.isNotBlank()) {
-            Column(
-                modifier = Modifier.padding(start = 4.dp, top = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 2.dp),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(start = 4.dp),
             ) {
                 Text(
-                    text = "\"${sense.example}\"",
+                    text = "“${sense.example}”",
                     style = MaterialTheme.typography.bodySmall,
                     fontStyle = FontStyle.Italic,
                     fontFamily = FontFamily.SansSerif,
                     color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
                 )
-                if (sense.exampleTranslation.isNotBlank()) {
-                    Text(
-                        text = "→ ${sense.exampleTranslation}",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.SansSerif,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
+                SourceChip(sense.exampleSource)
+            }
+            if (sense.exampleTranslation.isNotBlank()) {
+                Text(
+                    text = "→ ${sense.exampleTranslation}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.SansSerif,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
             }
         }
     }
+}
+
+/**
+ * Small, low-contrast provenance badge next to an English example. Renders nothing for
+ * [com.floatingclipboard.actions.ExampleSource.NONE] so the layout stays clean when there's
+ * no example at all.
+ */
+@Composable
+private fun SourceChip(source: com.floatingclipboard.actions.ExampleSource) {
+    val label = when (source) {
+        com.floatingclipboard.actions.ExampleSource.API -> "api"
+        com.floatingclipboard.actions.ExampleSource.KAIKKI -> "kaikki"
+        com.floatingclipboard.actions.ExampleSource.GENERATED -> "gen"
+        com.floatingclipboard.actions.ExampleSource.NONE -> return
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        fontFamily = FontFamily.Monospace,
+        color = MaterialTheme.colorScheme.outline,
+        modifier = Modifier.padding(top = 1.dp),
+    )
 }
 
 private fun highlightedEnglish(
