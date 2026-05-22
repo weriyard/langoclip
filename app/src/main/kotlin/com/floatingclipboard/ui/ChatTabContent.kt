@@ -179,13 +179,26 @@ private fun ChatBubble(msg: ChatMessage, streaming: Boolean = false) {
             modifier = Modifier.widthIn(max = 320.dp),
         ) {
             SelectionContainer {
-                Text(
-                    text = msg.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = textColor,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    fontStyle = if (streaming) FontStyle.Italic else FontStyle.Normal,
-                )
+                if (isUser) {
+                    // User input — render verbatim, no markdown parsing.
+                    Text(
+                        text = msg.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textColor,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                } else {
+                    // Assistant — markdown-formatted; italic while streaming partial.
+                    val style = MaterialTheme.typography.bodyMedium.let {
+                        if (streaming) it.copy(fontStyle = FontStyle.Italic) else it
+                    }
+                    MarkdownText(
+                        text = msg.content,
+                        color = textColor,
+                        baseStyle = style,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
             }
         }
     }
