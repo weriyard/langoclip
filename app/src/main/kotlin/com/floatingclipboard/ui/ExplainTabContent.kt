@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,32 +69,59 @@ fun ExplainTabContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // Snippet of the original text at the top — reminds of the context.
-        Text(
-            text = stringResource(R.string.explain_source_text),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        // Source + full-sentence translation paired in one card so the pairing is unmissable
+        // — previously they stacked loosely and the Polish line could fade into the breakdown.
+        SentenceHeaderCard(
+            sourceText = tab.sourceText,
+            fullTranslation = fullTranslation,
         )
-        SelectionContainer {
-            Text(
-                text = tab.sourceText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 4,
-            )
-        }
-        if (fullTranslation != null) {
-            SelectionContainer {
-                Text(
-                    text = fullTranslation,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = TranslationBlue,
-                    fontStyle = FontStyle.Italic,
-                )
-            }
-        }
 
         ResultPanel(state = tab.state, onShowExamples = onShowExamples, onRetry = onRetry)
+    }
+}
+
+@Composable
+private fun SentenceHeaderCard(sourceText: String, fullTranslation: String?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = stringResource(R.string.explain_source_text),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SelectionContainer {
+                Text(
+                    text = sourceText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 4,
+                )
+            }
+            if (fullTranslation != null) {
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+                Text(
+                    text = "Pełne tłumaczenie",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SelectionContainer {
+                    Text(
+                        text = fullTranslation,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TranslationBlue,
+                        fontStyle = FontStyle.Italic,
+                    )
+                }
+            }
+        }
     }
 }
 

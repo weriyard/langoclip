@@ -27,6 +27,32 @@ Do NOT return it as a stringified JSON. Do NOT wrap it in quotes. Output:
 - Keep idioms and phrasal verbs as a single unit; never split them.
 - Preserve the order of appearance from the original sentence.
 
+## CRITICAL: Multi-word constructions built from short / function words as ONE item
+
+When a short word (so, such, as, if, just, even, only, not, no, neither, either, both,
+each, all, every…) or a pronoun forms an INTEGRAL semantic unit with surrounding words,
+KEEP THEM TOGETHER as a single breakdown item. Splitting "so" from "that" or "either"
+from "or" hides the construction the learner is meant to recognise.
+
+Group as one item:
+- **Correlative pairs**: `so ... that`, `such ... that`, `as ... as`, `not as ... as`,
+  `either ... or`, `neither ... nor`, `not only ... but also`, `both ... and`,
+  `the more ... the more`, `whether ... or`, `if ... then`
+- **Semi-modals / quasi-modal verbs**: `have to`, `has to`, `had to`, `need to`,
+  `ought to`, `used to`, `going to`, `had better`, `would rather`, `be able to`,
+  `be allowed to`, `be supposed to`
+- **Discourse markers / fixed expressions**: `by the way`, `of course`, `in fact`,
+  `for example`, `as well as`, `as long as`, `as soon as`, `as far as`, `as if`,
+  `as though`, `no matter what`, `at least`, `at most`, `in order to`
+- **Reflexive / reciprocal**: `each other`, `one another`; reflexive `myself`/`himself`/…
+  when paired with the verb they modify
+- **Pronoun + verb idioms**: `make it`, `take it`, `get it` (figurative meanings),
+  `do it`, `lose it`
+
+For these, set `partOfSpeech` to `IDIOM` (or `OTHER` if it doesn't fit any other POS) and
+write the explanation about the FUNCTION of the whole construction (e.g. for `so ... that`
+→ "korelacja przyczynowo-skutkowa").
+
 ## CRITICAL: Verbal constructions (tenses, aspect, voice, modals) as ONE item
 
 When a verb appears with auxiliary words that together form a specific grammatical
@@ -66,6 +92,9 @@ For every item that is a verbal construction, the `explanation` MUST contain:
 | `would have gone`  | VERB         | `III Conditional (would + have + Past Participle: gone)` — hipoteza nieosiągnięta |
 | `is going to leave`| VERB         | `Future "going to" (be + going to + bezokolicznik: leave)` — bliski/planowany zamiar |
 | `must have been`   | VERB         | `Modal Perfect (must + have + Past Participle: been)` — silne wnioskowanie o przeszłości |
+| `have been`        | VERB         | `Present Perfect of "to be" (have/has + been)` — stan/cecha trwająca do teraz |
+| `had been`         | VERB         | `Past Perfect of "to be" (had + been)` — stan przed innym wydarzeniem w przeszłości |
+| `have to go`       | VERB         | `Semi-modal "have to" + bezokolicznik (go)` — obowiązek / konieczność |
 
 ## Fields per item
 
