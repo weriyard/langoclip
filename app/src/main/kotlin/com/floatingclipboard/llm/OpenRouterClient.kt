@@ -1,5 +1,6 @@
 package com.floatingclipboard.llm
 
+import com.floatingclipboard.data.LogStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,7 @@ import kotlinx.serialization.json.JsonElement
 class OpenRouterClient(
     private val apiKey: String,
     private val candidates: List<String>,
+    private val logs: LogStore? = null,
 ) : LlmClient {
 
     override suspend fun complete(
@@ -30,17 +32,24 @@ class OpenRouterClient(
         jsonSchema: JsonElement?,
     ): Result<String> {
         var lastFailure: Throwable = LlmError.EmptyResponse
-        for (model in candidates) {
+        candidates.forEachIndexed { idx, model ->
+            logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model")
             val client = OpenAiClient(apiKey, model, OpenAiClient.OPENROUTER_BASE_URL)
             val result = client.complete(systemPrompt, userPrompt, jsonSchema)
             result.onSuccess {
+                logs?.d(TAG, "[${idx + 1}/${candidates.size}] $model OK (complete)")
                 OpenRouterModelHint.record(model)
                 return Result.success(it)
             }
-            val err = result.exceptionOrNull() ?: continue
-            if (!isQuotaError(err)) return result
+            val err = result.exceptionOrNull() ?: return@forEachIndexed
+            if (!isQuotaError(err)) {
+                logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model NON-QUOTA error, bubbling up: ${err.message?.take(140)}")
+                return result
+            }
+            logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model quota error, trying next: ${err.message?.take(140)}")
             lastFailure = err
         }
+        logs?.e(TAG, "all ${candidates.size} candidates exhausted, last error: ${lastFailure.message?.take(140)}")
         return Result.failure(lastFailure)
     }
 
@@ -50,7 +59,8 @@ class OpenRouterClient(
         jsonSchema: JsonElement?,
     ): Flow<String> = flow {
         var lastFailure: Throwable? = null
-        for (model in candidates) {
+        candidates.forEachIndexed { idx, model ->
+            logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model")
             var emitted = false
             try {
                 val client = OpenAiClient(apiKey, model, OpenAiClient.OPENROUTER_BASE_URL)
@@ -59,6 +69,7 @@ class OpenRouterClient(
                     emit(delta)
                 }
                 // Stream completed without error → this model is the winner.
+                logs?.d(TAG, "[${idx + 1}/${candidates.size}] $model OK (stream)")
                 OpenRouterModelHint.record(model)
                 return@flow
             } catch (e: CancellationException) {
@@ -67,11 +78,20 @@ class OpenRouterClient(
                 lastFailure = e
                 // If we already started painting tokens, we can't fall back without confusing the
                 // UI — bubble the error to the caller as-is.
-                if (emitted || !isQuotaError(e)) throw e
-                // else: continue with next candidate
+                if (emitted) {
+                    logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model mid-stream error after $emitted deltas, propagating: ${e.message?.take(140)}")
+                    throw e
+                }
+                if (!isQuotaError(e)) {
+                    logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model NON-QUOTA error, bubbling up: ${e.message?.take(140)}")
+                    throw e
+                }
+                logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model quota error, trying next: ${e.message?.take(140)}")
             }
         }
-        throw lastFailure ?: LlmError.EmptyResponse
+        val err = lastFailure ?: LlmError.EmptyResponse
+        logs?.e(TAG, "all ${candidates.size} candidates exhausted, last error: ${err.message?.take(140)}")
+        throw err
     }
 
     private fun isQuotaError(e: Throwable): Boolean = when (e) {
@@ -81,6 +101,7 @@ class OpenRouterClient(
     }
 
     companion object {
+        private const val TAG = "OpenRouter"
         // 402 Payment Required is what Crucible / other upstream providers return when their own
         // free-tier daily quota is exhausted (OpenRouter forwards the upstream code unchanged).
         // 429 is the standard rate-limit signal.
