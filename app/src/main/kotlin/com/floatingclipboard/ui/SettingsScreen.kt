@@ -53,6 +53,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.floatingclipboard.R
 import com.floatingclipboard.data.AppLocale
 import com.floatingclipboard.data.Provider
+import com.floatingclipboard.llm.OpenRouterModelHint
 
 private val SUGGESTED_LANGUAGES = listOf("polski", "English", "Deutsch", "Français", "Español", "Italiano", "ukraiński")
 
@@ -229,36 +230,43 @@ fun SettingsScreen(
                 Text(stringResource(R.string.settings_where_to_get_key))
             }
 
-            Text(
-                stringResource(R.string.settings_model_header, provider.displayName),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            ExposedDropdownMenuBox(
-                expanded = modelMenuOpen,
-                onExpandedChange = { modelMenuOpen = it },
-            ) {
-                OutlinedTextField(
-                    value = activeModel,
-                    onValueChange = onActiveModelChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.settings_model_label)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelMenuOpen) },
+            if (provider == Provider.OPENROUTER) {
+                OpenRouterModelSection(
+                    onlyFree = saved.onlyFreeOpenRouter,
+                    onToggleOnlyFree = { viewModel.setOnlyFreeOpenRouter(it) },
                 )
-                ExposedDropdownMenu(
+            } else {
+                Text(
+                    stringResource(R.string.settings_model_header, provider.displayName),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                ExposedDropdownMenuBox(
                     expanded = modelMenuOpen,
-                    onDismissRequest = { modelMenuOpen = false },
+                    onExpandedChange = { modelMenuOpen = it },
                 ) {
-                    provider.models.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                onActiveModelChange(option)
-                                modelMenuOpen = false
-                            },
-                        )
+                    OutlinedTextField(
+                        value = activeModel,
+                        onValueChange = onActiveModelChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.settings_model_label)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelMenuOpen) },
+                    )
+                    ExposedDropdownMenu(
+                        expanded = modelMenuOpen,
+                        onDismissRequest = { modelMenuOpen = false },
+                    ) {
+                        provider.models.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    onActiveModelChange(option)
+                                    modelMenuOpen = false
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -444,6 +452,50 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.settings_pin_to_home)) }
         }
+    }
+}
+
+/**
+ * OpenRouter-specific model section. The actual model is picked automatically by
+ * OpenRouterClient walking a candidate list (free or paid, driven by [onlyFree]); the dropdown
+ * the other providers expose would be misleading here, so we replace it with a toggle and a
+ * live "currently used" hint sourced from OpenRouterModelHint.
+ */
+@Composable
+private fun OpenRouterModelSection(
+    onlyFree: Boolean,
+    onToggleOnlyFree: (Boolean) -> Unit,
+) {
+    val currentlyUsed by OpenRouterModelHint.current.collectAsStateWithLifecycle()
+    Text(
+        "Model OpenRouter",
+        style = MaterialTheme.typography.titleMedium,
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Tylko darmowe modele", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                if (onlyFree)
+                    "Aplikacja przełącza między darmowymi modelami :free; gdy jeden się wyczerpie próbuje następnego."
+                else
+                    "Najtańszy płatny model (DeepSeek V4 Flash). Idzie z kredytów OpenRouter — bardzo tanio.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = onlyFree, onCheckedChange = onToggleOnlyFree)
+    }
+    val hint = currentlyUsed
+    if (hint != null) {
+        Text(
+            text = "Aktualnie używany: $hint",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.outline,
+        )
     }
 }
 

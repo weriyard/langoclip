@@ -40,6 +40,7 @@ data class Settings(
     val openRouterApiKey: String,
     val isUsingDefaultOpenRouterKey: Boolean,
     val openRouterModel: String,
+    val onlyFreeOpenRouter: Boolean,
     val targetLanguage: String,
     val autoStartBubble: Boolean,
     val appLocale: AppLocale,
@@ -111,6 +112,7 @@ class SettingsRepository private constructor(context: Context) {
             openRouterApiKey = openRouterOverride ?: BuildConfig.DEFAULT_OPENROUTER_API_KEY,
             isUsingDefaultOpenRouterKey = openRouterOverride == null,
             openRouterModel = prefs[PREF_OPENROUTER_MODEL] ?: Provider.OPENROUTER.defaultModel,
+            onlyFreeOpenRouter = prefs[PREF_OPENROUTER_ONLY_FREE] ?: true,
             targetLanguage = prefs[PREF_TARGET_LANG] ?: DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = prefs[PREF_AUTO_START_BUBBLE] ?: true,
             appLocale = AppLocale.parse(prefs[PREF_APP_LOCALE]),
@@ -153,6 +155,10 @@ class SettingsRepository private constructor(context: Context) {
         appContext.settingsDataStore.edit { it[PREF_OPENROUTER_MODEL] = model }
     }
 
+    suspend fun setOnlyFreeOpenRouter(enabled: Boolean) {
+        appContext.settingsDataStore.edit { it[PREF_OPENROUTER_ONLY_FREE] = enabled }
+    }
+
     suspend fun setTargetLanguage(lang: String) {
         appContext.settingsDataStore.edit { it[PREF_TARGET_LANG] = lang }
     }
@@ -188,6 +194,7 @@ class SettingsRepository private constructor(context: Context) {
         private val PREF_OPENAI_MODEL = stringPreferencesKey("openai_model")
         private val PREF_ANTHROPIC_MODEL = stringPreferencesKey("anthropic_model")
         private val PREF_OPENROUTER_MODEL = stringPreferencesKey("openrouter_model")
+        private val PREF_OPENROUTER_ONLY_FREE = booleanPreferencesKey("openrouter_only_free")
         private val PREF_TARGET_LANG = stringPreferencesKey("target_language")
         private val PREF_AUTO_START_BUBBLE = booleanPreferencesKey("auto_start_bubble")
         private val PREF_APP_LOCALE = stringPreferencesKey("app_locale")

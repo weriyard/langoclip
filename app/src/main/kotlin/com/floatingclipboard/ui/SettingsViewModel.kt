@@ -35,11 +35,16 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
             openRouterApiKey = "",
             isUsingDefaultOpenRouterKey = true,
             openRouterModel = Provider.OPENROUTER.defaultModel,
+            onlyFreeOpenRouter = true,
             targetLanguage = SettingsRepository.DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = true,
             appLocale = AppLocale.SYSTEM,
         ),
     )
+
+    fun setOnlyFreeOpenRouter(enabled: Boolean) {
+        viewModelScope.launch { repo.setOnlyFreeOpenRouter(enabled) }
+    }
 
     fun save(
         provider: Provider,

@@ -53,5 +53,28 @@ enum class Provider(
         // — users without any API key still get a usable app out of the box.
         fun parse(value: String?): Provider =
             entries.firstOrNull { it.name == value?.uppercase() } ?: OPENROUTER
+
+        // Ordered candidate list when "only free" mode is ON in Settings. Best Polish + JSON
+        // discipline first — OpenRouterClient walks this until one returns content (some upstream
+        // providers run out of their per-model daily free allocations independently of our
+        // account's OpenRouter quota).
+        val OPENROUTER_FREE_CANDIDATES: List<String> = listOf(
+            "deepseek/deepseek-v4-flash:free",
+            "qwen/qwen3-next-80b-a3b-instruct:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "openai/gpt-oss-120b:free",
+            "google/gemma-4-31b-it:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "z-ai/glm-4.5-air:free",
+            "nousresearch/hermes-3-llama-3.1-405b:free",
+        )
+
+        // "Only free" toggle OFF → paid routing. Cheapest-good-first; falls through if quota
+        // runs out (shouldn't happen unless OpenRouter credits are empty).
+        val OPENROUTER_PAID_CANDIDATES: List<String> = listOf(
+            "deepseek/deepseek-v4-flash",            // ~$0.10–0.30 / M tokens, strong Polish + JSON
+            "meta-llama/llama-3.3-70b-instruct",     // ~$0.05–0.30 / M, well-rounded fallback
+            "google/gemini-2.0-flash",               // fast, dirt cheap
+        )
     }
 }

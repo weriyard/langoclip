@@ -8,10 +8,14 @@ fun createLlmClient(settings: Settings, model: String = settings.activeModel): L
         Provider.GEMINI -> GeminiClient(apiKey = settings.geminiApiKey, model = model)
         Provider.OPENAI -> OpenAiClient(apiKey = settings.openAiApiKey, model = model)
         Provider.ANTHROPIC -> AnthropicClient(apiKey = settings.anthropicApiKey, model = model)
-        // OpenRouter speaks the OpenAI Chat Completions protocol → reuse OpenAiClient with their URL.
-        Provider.OPENROUTER -> OpenAiClient(
+        // OpenRouter goes through the fallback-chain wrapper. Candidate list comes from the
+        // "only free" toggle in Settings; OpenRouterClient walks it on 402 / 429 from upstream
+        // providers (each :free model is hosted by a backend with its own per-day quota).
+        Provider.OPENROUTER -> OpenRouterClient(
             apiKey = settings.openRouterApiKey,
-            model = model,
-            baseUrl = OpenAiClient.OPENROUTER_BASE_URL,
+            candidates = if (settings.onlyFreeOpenRouter)
+                Provider.OPENROUTER_FREE_CANDIDATES
+            else
+                Provider.OPENROUTER_PAID_CANDIDATES,
         )
     }
