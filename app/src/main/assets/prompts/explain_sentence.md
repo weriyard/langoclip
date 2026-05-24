@@ -74,6 +74,25 @@ Auxiliary verbs (`be`, `have`, `do`, modals) are NEVER skipped when part of such
 constructions. A "standalone" auxiliary appears only as a linking verb / copula
 (e.g. `She is tall` → `is` is the main verb here).
 
+### Subject pronoun is part of the verbal construction
+
+When the subject of a verbal construction is a **personal pronoun** (`I`, `you`, `he`,
+`she`, `it`, `we`, `they`) or `this` / `that` used as subject, INCLUDE IT as the head of
+the same item. The learner needs to see the whole "subject + tense" unit at once.
+
+- `I have been waiting` → ONE item (Present Perfect Continuous of `wait`, with subject `I`)
+- `She would have gone` → ONE item (III Conditional)
+- `They were sailed` → ONE item (Past Simple Passive)
+- `He is going to leave` → ONE item (Future `going to`)
+
+If the subject is a noun phrase longer than one word (e.g. `My older brother`, `The man
+in the corner`), leave it as a separate item and the verbal construction starts at the
+auxiliary. Single proper-noun subjects (`John`, `Anna`) MAY be grouped if it keeps the
+example tight.
+
+The `translation` field of such an item must include the Polish subject + verb
+translation as one natural phrase (e.g. `I have been waiting` → `Czekam (od jakiegoś czasu)`).
+
 ### Explanation format for verbal constructions
 
 For every item that is a verbal construction, the `explanation` MUST contain:
@@ -87,14 +106,15 @@ For every item that is a verbal construction, the `explanation` MUST contain:
 
 | Original           | partOfSpeech | explanation                                                            |
 |--------------------|--------------|------------------------------------------------------------------------|
-| `were sailed`      | VERB         | `Past Simple Passive (were + Past Participle: sailed)` — bierne czynności w przeszłości |
-| `has been working` | VERB         | `Present Perfect Continuous (have/has + been + verb-ing: working)` — czynność trwająca do teraz |
-| `would have gone`  | VERB         | `III Conditional (would + have + Past Participle: gone)` — hipoteza nieosiągnięta |
-| `is going to leave`| VERB         | `Future "going to" (be + going to + bezokolicznik: leave)` — bliski/planowany zamiar |
-| `must have been`   | VERB         | `Modal Perfect (must + have + Past Participle: been)` — silne wnioskowanie o przeszłości |
-| `have been`        | VERB         | `Present Perfect of "to be" (have/has + been)` — stan/cecha trwająca do teraz |
-| `had been`         | VERB         | `Past Perfect of "to be" (had + been)` — stan przed innym wydarzeniem w przeszłości |
-| `have to go`       | VERB         | `Semi-modal "have to" + bezokolicznik (go)` — obowiązek / konieczność |
+| `They were sailed`       | VERB         | `Past Simple Passive (were + Past Participle: sailed)` — bierne czynności w przeszłości |
+| `She has been working`   | VERB         | `Present Perfect Continuous (have/has + been + verb-ing: working)` — czynność trwająca do teraz |
+| `I have been waiting`    | VERB         | `Present Perfect Continuous (have + been + verb-ing: waiting)` — czynność trwająca od pewnego momentu do teraz |
+| `We would have gone`     | VERB         | `III Conditional (would + have + Past Participle: gone)` — hipoteza nieosiągnięta |
+| `It is going to leave`   | VERB         | `Future "going to" (be + going to + bezokolicznik: leave)` — bliski/planowany zamiar |
+| `He must have been`      | VERB         | `Modal Perfect (must + have + Past Participle: been)` — silne wnioskowanie o przeszłości |
+| `I have been`            | VERB         | `Present Perfect of "to be" (have + been)` — stan trwający do teraz |
+| `had been`               | VERB         | `Past Perfect of "to be" (had + been)` — stan przed innym wydarzeniem w przeszłości |
+| `You have to go`         | VERB         | `Semi-modal "have to" + bezokolicznik (go)` — obowiązek / konieczność |
 
 ## Fields per item
 
