@@ -467,6 +467,7 @@ private fun OpenRouterModelSection(
     onToggleOnlyFree: (Boolean) -> Unit,
 ) {
     val currentlyUsed by OpenRouterModelHint.current.collectAsStateWithLifecycle()
+    val tryingNow by OpenRouterModelHint.trying.collectAsStateWithLifecycle()
     Text(
         "Model OpenRouter",
         style = MaterialTheme.typography.titleMedium,
@@ -488,10 +489,14 @@ private fun OpenRouterModelSection(
         }
         Switch(checked = onlyFree, onCheckedChange = onToggleOnlyFree)
     }
-    val hint = currentlyUsed
-    if (hint != null) {
+    val hintText = when {
+        tryingNow != null -> "↻ Próbuję: ${tryingNow!!.model} (${tryingNow!!.attempt}/${tryingNow!!.total})"
+        currentlyUsed != null -> "Aktualnie używany: $currentlyUsed"
+        else -> null
+    }
+    if (hintText != null) {
         Text(
-            text = "Aktualnie używany: $hint",
+            text = hintText,
             style = MaterialTheme.typography.labelSmall,
             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
             color = MaterialTheme.colorScheme.outline,

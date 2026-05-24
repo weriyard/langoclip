@@ -13,9 +13,11 @@ import com.floatingclipboard.actions.PromptLoader
 import com.floatingclipboard.chat.ChatMessage
 import com.floatingclipboard.data.LlmCache
 import com.floatingclipboard.data.LogStore
+import com.floatingclipboard.data.Provider
 import com.floatingclipboard.data.SettingsRepository
 import com.floatingclipboard.llm.AnthropicClient
 import com.floatingclipboard.llm.ChatTurn
+import com.floatingclipboard.llm.OpenRouterModelHint
 import com.floatingclipboard.data.Tab
 import com.floatingclipboard.data.Tab.Companion.PASTE_ID
 import com.floatingclipboard.data.TabId
@@ -52,9 +54,26 @@ class TabsViewModel(
         list.firstOrNull { it.id == id }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val providerLabel: StateFlow<String> = runner.settings
-        .map { "${it.provider.displayName} · ${it.activeModel}" }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
+    val providerLabel: StateFlow<String> = combine(
+        runner.settings,
+        OpenRouterModelHint.trying,
+        OpenRouterModelHint.current,
+    ) { settings, trying, current ->
+        val provider = settings.provider.displayName
+        if (settings.provider != Provider.OPENROUTER) {
+            return@combine "$provider · ${settings.activeModel}"
+        }
+        // Display compactly: drop the "vendor/" prefix and ":free" suffix that bloat the bar.
+        val suffix = when {
+            trying != null -> "↻ ${shortModel(trying.model)} (${trying.attempt}/${trying.total})"
+            current != null -> shortModel(current)
+            else -> shortModel(settings.activeModel)
+        }
+        "$provider · $suffix"
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, "")
+
+    private fun shortModel(model: String): String =
+        model.substringAfter('/').removeSuffix(":free")
 
     fun select(id: TabId) = tabs.select(id)
     fun close(id: TabId) = tabs.close(id)

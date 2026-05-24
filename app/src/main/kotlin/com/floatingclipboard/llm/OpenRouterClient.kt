@@ -33,6 +33,7 @@ class OpenRouterClient(
     ): Result<String> {
         candidates.forEachIndexed { idx, model ->
             logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model")
+            OpenRouterModelHint.startTrying(model, idx + 1, candidates.size)
             val client = OpenAiClient(apiKey, model, OpenAiClient.OPENROUTER_BASE_URL)
             val result = client.complete(systemPrompt, userPrompt, jsonSchema)
             result.onSuccess {
@@ -47,6 +48,7 @@ class OpenRouterClient(
             }
             logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model quota error, trying next: ${err.message?.take(140)}")
         }
+        OpenRouterModelHint.clearTrying()
         logs?.e(TAG, "all ${candidates.size} candidates exhausted (every model 402/429)")
         return Result.failure(LlmError.AllCandidatesExhausted)
     }
@@ -58,6 +60,7 @@ class OpenRouterClient(
     ): Flow<String> = flow {
         candidates.forEachIndexed { idx, model ->
             logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model")
+            OpenRouterModelHint.startTrying(model, idx + 1, candidates.size)
             var emitted = false
             try {
                 val client = OpenAiClient(apiKey, model, OpenAiClient.OPENROUTER_BASE_URL)
@@ -92,6 +95,7 @@ class OpenRouterClient(
                 logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model quota error, trying next: ${e.message?.take(140)}")
             }
         }
+        OpenRouterModelHint.clearTrying()
         logs?.e(TAG, "all ${candidates.size} candidates exhausted (every model 402/429/empty)")
         throw LlmError.AllCandidatesExhausted
     }
@@ -112,16 +116,31 @@ class OpenRouterClient(
 }
 
 /**
- * Process-wide observable of the currently-working OpenRouter model. Settings UI subscribes to
- * this StateFlow to render "Aktualnie używany: X" without having to thread callbacks through
- * the factory. Resets on app process restart (intentional — we want to re-probe on cold start
- * because upstream provider quotas may have reset).
+ * Process-wide observable of OpenRouter routing state. Two flows so the UI can show both:
+ *  - [trying]  — set while a candidate is being probed; reads as "↻ qwen3-next (2/7)".
+ *  - [current] — set when a candidate finally returned content; the "winner" of the chain.
+ * Settings + the top app-bar label subscribe to both. Resets on app process restart so the
+ * fallback walker re-probes on cold start (upstream provider quotas may have replenished).
  */
 object OpenRouterModelHint {
+    data class TryingState(val model: String, val attempt: Int, val total: Int)
+
     private val _current = MutableStateFlow<String?>(null)
     val current: StateFlow<String?> = _current.asStateFlow()
 
+    private val _trying = MutableStateFlow<TryingState?>(null)
+    val trying: StateFlow<TryingState?> = _trying.asStateFlow()
+
+    fun startTrying(model: String, attempt: Int, total: Int) {
+        _trying.value = TryingState(model, attempt, total)
+    }
+
     fun record(model: String) {
+        _trying.value = null
         _current.value = model
+    }
+
+    fun clearTrying() {
+        _trying.value = null
     }
 }
