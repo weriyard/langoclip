@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -13,16 +15,18 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -179,6 +183,7 @@ private fun BreakdownList(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BreakdownItemRow(
     item: BreakdownItem,
@@ -234,34 +239,55 @@ private fun BreakdownItemRow(
                     DropdownMenu(
                         expanded = menuOpen,
                         onDismissRequest = { menuOpen = false },
+                        modifier = Modifier.widthIn(min = 220.dp, max = 320.dp),
                     ) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "„${item.original}\" — cała fraza",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            },
-                            onClick = {
-                                menuOpen = false
-                                onShowExamples(item.original, item.translation)
-                            },
-                        )
-                        HorizontalDivider()
-                        words.forEach { word ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = word,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                },
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = "Wybierz fragment do tłumaczenia",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            // Whole phrase — filled chip stands out from the single-word options.
+                            AssistChip(
                                 onClick = {
                                     menuOpen = false
-                                    onShowExamples(word, "")
+                                    onShowExamples(item.original, item.translation)
                                 },
+                                label = {
+                                    Text(
+                                        text = "„${item.original}\"",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                ),
+                                border = null,
                             )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                words.forEach { word ->
+                                    AssistChip(
+                                        onClick = {
+                                            menuOpen = false
+                                            onShowExamples(word, "")
+                                        },
+                                        label = {
+                                            Text(
+                                                text = word,
+                                                style = MaterialTheme.typography.labelMedium,
+                                            )
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
