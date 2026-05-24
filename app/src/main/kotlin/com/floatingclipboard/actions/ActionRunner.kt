@@ -456,7 +456,7 @@ class ActionRunner(
     ): List<T>? {
         val cleaned = stripMarkdownWrap(rawText).trim()
 
-        // Attempt: parse as JsonElement and find the field.
+        // Attempt 1: strict whole-document parse.
         runCatching {
             val root = parseLiberal(cleaned)
             val list = extractArrayField(root, fieldName) ?: extractFirstArray(root)
@@ -465,6 +465,16 @@ class ActionRunner(
             }
         }.onFailure {
             logs.w(TAG, "PARSE attempt failed: ${it.message?.take(120)}")
+        }
+
+        // Attempt 2: tolerant brace-counting extractor. Walks the `<field>:[…]` content and picks
+        // up well-formed `{…}` blocks individually. Survives a malformed object in the middle of
+        // the array (DeepSeek V4 Flash :free occasionally drops a `}` mid-stream) — drops the
+        // broken element, keeps the rest.
+        val recovered = StreamingArrayParser(json, fieldName, elementSerializer).extract(cleaned)
+        if (recovered.isNotEmpty()) {
+            logs.w(TAG, "RECOVERED ${recovered.size} $fieldName via tolerant parser (strict failed)")
+            return recovered
         }
         return null
     }

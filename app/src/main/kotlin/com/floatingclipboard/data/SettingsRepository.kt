@@ -3,6 +3,7 @@ package com.floatingclipboard.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -41,6 +42,7 @@ data class Settings(
     val isUsingDefaultOpenRouterKey: Boolean,
     val openRouterModel: String,
     val onlyFreeOpenRouter: Boolean,
+    val openRouterTtftTimeoutSec: Int,
     val targetLanguage: String,
     val autoStartBubble: Boolean,
     val appLocale: AppLocale,
@@ -113,6 +115,7 @@ class SettingsRepository private constructor(context: Context) {
             isUsingDefaultOpenRouterKey = openRouterOverride == null,
             openRouterModel = prefs[PREF_OPENROUTER_MODEL] ?: Provider.OPENROUTER.defaultModel,
             onlyFreeOpenRouter = prefs[PREF_OPENROUTER_ONLY_FREE] ?: true,
+            openRouterTtftTimeoutSec = prefs[PREF_OPENROUTER_TTFT_SEC] ?: 30,
             targetLanguage = prefs[PREF_TARGET_LANG] ?: DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = prefs[PREF_AUTO_START_BUBBLE] ?: true,
             appLocale = AppLocale.parse(prefs[PREF_APP_LOCALE]),
@@ -159,6 +162,10 @@ class SettingsRepository private constructor(context: Context) {
         appContext.settingsDataStore.edit { it[PREF_OPENROUTER_ONLY_FREE] = enabled }
     }
 
+    suspend fun setOpenRouterTtftTimeoutSec(seconds: Int) {
+        appContext.settingsDataStore.edit { it[PREF_OPENROUTER_TTFT_SEC] = seconds.coerceIn(5, 120) }
+    }
+
     suspend fun setTargetLanguage(lang: String) {
         appContext.settingsDataStore.edit { it[PREF_TARGET_LANG] = lang }
     }
@@ -195,6 +202,7 @@ class SettingsRepository private constructor(context: Context) {
         private val PREF_ANTHROPIC_MODEL = stringPreferencesKey("anthropic_model")
         private val PREF_OPENROUTER_MODEL = stringPreferencesKey("openrouter_model")
         private val PREF_OPENROUTER_ONLY_FREE = booleanPreferencesKey("openrouter_only_free")
+        private val PREF_OPENROUTER_TTFT_SEC = intPreferencesKey("openrouter_ttft_sec")
         private val PREF_TARGET_LANG = stringPreferencesKey("target_language")
         private val PREF_AUTO_START_BUBBLE = booleanPreferencesKey("auto_start_bubble")
         private val PREF_APP_LOCALE = stringPreferencesKey("app_locale")

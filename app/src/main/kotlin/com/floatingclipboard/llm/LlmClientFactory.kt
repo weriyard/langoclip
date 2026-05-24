@@ -22,5 +22,6 @@ fun createLlmClient(
         else
             Provider.OPENROUTER_PAID_CANDIDATES,
         logs = logs,
+        ttftTimeoutMs = settings.openRouterTtftTimeoutSec.toLong() * 1000L,
     )
 }

@@ -2,11 +2,14 @@ package com.floatingclipboard.llm
 
 import com.floatingclipboard.data.LogStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonElement
 
 /**
@@ -24,6 +27,9 @@ class OpenRouterClient(
     private val apiKey: String,
     private val candidates: List<String>,
     private val logs: LogStore? = null,
+    /** Time-to-first-token cap per candidate, in milliseconds. After the first chunk arrives the
+     *  request is allowed to take as long as it needs (some upstream providers stream slowly). */
+    private val ttftTimeoutMs: Long = 30_000,
 ) : LlmClient {
 
     override suspend fun complete(
@@ -57,47 +63,90 @@ class OpenRouterClient(
         systemPrompt: String,
         userPrompt: String,
         jsonSchema: JsonElement?,
-    ): Flow<String> = flow {
+    ): Flow<String> = channelFlow {
         candidates.forEachIndexed { idx, model ->
-            logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model")
+            logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model (ttft cap ${ttftTimeoutMs}ms)")
             OpenRouterModelHint.startTrying(model, idx + 1, candidates.size)
-            var emitted = false
-            try {
-                val client = OpenAiClient(apiKey, model, OpenAiClient.OPENROUTER_BASE_URL)
-                client.stream(systemPrompt, userPrompt, jsonSchema).collect { delta ->
-                    emitted = true
-                    emit(delta)
+
+            // Producer pushes upstream deltas + termination signal into a buffered channel.
+            // We race the first receive against [ttftTimeoutMs]; once any chunk arrives, the
+            // remaining receives drain unbounded (slow per-token rates are acceptable).
+            val pipe = Channel<ProducerEvent>(Channel.UNLIMITED)
+            val producer = launch {
+                try {
+                    val client = OpenAiClient(apiKey, model, OpenAiClient.OPENROUTER_BASE_URL)
+                    client.stream(systemPrompt, userPrompt, jsonSchema).collect { delta ->
+                        pipe.send(ProducerEvent.Chunk(delta))
+                    }
+                    pipe.send(ProducerEvent.Done)
+                } catch (e: CancellationException) {
+                    // Expected when we cancel on TTFT timeout — just exit.
+                } catch (e: Throwable) {
+                    pipe.send(ProducerEvent.Failed(e))
+                } finally {
+                    pipe.close()
                 }
-                // Stream completed normally. Some models (e.g. open-source gpt-oss with strict
-                // json_schema) accept the request, finish the SSE stream, but never emit any
-                // content delta — treat that as failure and fall through to the next candidate.
-                // Safe to do because nothing was painted yet (emitted == false).
-                if (!emitted) {
+            }
+
+            val first = withTimeoutOrNull(ttftTimeoutMs) { pipe.receive() }
+            if (first == null) {
+                logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model TTFT > ${ttftTimeoutMs}ms, trying next")
+                producer.cancel()
+                return@forEachIndexed
+            }
+
+            when (first) {
+                is ProducerEvent.Failed -> {
+                    val err = first.cause
+                    if (!isQuotaError(err)) {
+                        logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model NON-QUOTA error, bubbling up: ${err.message?.take(140)}")
+                        throw err
+                    }
+                    logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model quota error, trying next: ${err.message?.take(140)}")
+                    return@forEachIndexed
+                }
+                ProducerEvent.Done -> {
+                    // Producer finished without emitting any chunk — e.g. gpt-oss-120b accepts
+                    // the request, completes the SSE, but never produces content. Safe to fall
+                    // through because nothing was painted.
                     logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model emitted 0 deltas, trying next")
                     return@forEachIndexed
                 }
-                logs?.d(TAG, "[${idx + 1}/${candidates.size}] $model OK (stream)")
-                OpenRouterModelHint.record(model)
-                return@flow
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                // If we already started painting tokens, we can't fall back without confusing the
-                // UI — bubble the error to the caller as-is.
-                if (emitted) {
-                    logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model mid-stream error, propagating: ${e.message?.take(140)}")
-                    throw e
+                is ProducerEvent.Chunk -> {
+                    // First chunk landed. Commit to this model and drain the rest.
+                    send(first.text)
+                    for (event in pipe) {
+                        when (event) {
+                            is ProducerEvent.Chunk -> send(event.text)
+                            ProducerEvent.Done -> {
+                                logs?.d(TAG, "[${idx + 1}/${candidates.size}] $model OK (stream)")
+                                OpenRouterModelHint.record(model)
+                                return@channelFlow
+                            }
+                            is ProducerEvent.Failed -> {
+                                // Mid-stream error — can't fall back without confusing the UI
+                                // (some tokens already painted). Propagate.
+                                logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model mid-stream error, propagating: ${event.cause.message?.take(140)}")
+                                throw event.cause
+                            }
+                        }
+                    }
+                    // Channel closed without an explicit Done — treat as success of what we got.
+                    logs?.d(TAG, "[${idx + 1}/${candidates.size}] $model OK (stream, channel closed)")
+                    OpenRouterModelHint.record(model)
+                    return@channelFlow
                 }
-                if (!isQuotaError(e)) {
-                    logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model NON-QUOTA error, bubbling up: ${e.message?.take(140)}")
-                    throw e
-                }
-                logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model quota error, trying next: ${e.message?.take(140)}")
             }
         }
         OpenRouterModelHint.clearTrying()
-        logs?.e(TAG, "all ${candidates.size} candidates exhausted (every model 402/429/empty)")
+        logs?.e(TAG, "all ${candidates.size} candidates exhausted (every model 402/429/empty/TTFT)")
         throw LlmError.AllCandidatesExhausted
+    }
+
+    private sealed interface ProducerEvent {
+        data class Chunk(val text: String) : ProducerEvent
+        data object Done : ProducerEvent
+        data class Failed(val cause: Throwable) : ProducerEvent
     }
 
     private fun isQuotaError(e: Throwable): Boolean = when (e) {

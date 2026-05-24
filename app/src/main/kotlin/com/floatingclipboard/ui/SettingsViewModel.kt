@@ -36,6 +36,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
             isUsingDefaultOpenRouterKey = true,
             openRouterModel = Provider.OPENROUTER.defaultModel,
             onlyFreeOpenRouter = true,
+            openRouterTtftTimeoutSec = 30,
             targetLanguage = SettingsRepository.DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = true,
             appLocale = AppLocale.SYSTEM,
@@ -44,6 +45,10 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
 
     fun setOnlyFreeOpenRouter(enabled: Boolean) {
         viewModelScope.launch { repo.setOnlyFreeOpenRouter(enabled) }
+    }
+
+    fun setOpenRouterTtftTimeoutSec(seconds: Int) {
+        viewModelScope.launch { repo.setOpenRouterTtftTimeoutSec(seconds) }
     }
 
     fun save(

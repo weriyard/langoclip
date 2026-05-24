@@ -234,6 +234,8 @@ fun SettingsScreen(
                 OpenRouterModelSection(
                     onlyFree = saved.onlyFreeOpenRouter,
                     onToggleOnlyFree = { viewModel.setOnlyFreeOpenRouter(it) },
+                    ttftSec = saved.openRouterTtftTimeoutSec,
+                    onTtftChange = { viewModel.setOpenRouterTtftTimeoutSec(it) },
                 )
             } else {
                 Text(
@@ -465,6 +467,8 @@ fun SettingsScreen(
 private fun OpenRouterModelSection(
     onlyFree: Boolean,
     onToggleOnlyFree: (Boolean) -> Unit,
+    ttftSec: Int,
+    onTtftChange: (Int) -> Unit,
 ) {
     val currentlyUsed by OpenRouterModelHint.current.collectAsStateWithLifecycle()
     val tryingNow by OpenRouterModelHint.trying.collectAsStateWithLifecycle()
@@ -500,6 +504,35 @@ private fun OpenRouterModelSection(
             style = MaterialTheme.typography.labelSmall,
             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
             color = MaterialTheme.colorScheme.outline,
+        )
+    }
+
+    // TTFT timeout — how long to wait for the first chunk before skipping to next candidate.
+    // gpt-oss-120b in particular has been observed to "accept" the request and then sit silent;
+    // a cap lets us move on instead of staring at a spinner.
+    var ttftInput by remember(ttftSec) { mutableStateOf(ttftSec.toString()) }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Timeout pierwszego chunku", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "Jeśli model nie zacznie odpowiadać w X sekund, przechodzimy do następnego. (5–120 s)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        OutlinedTextField(
+            value = ttftInput,
+            onValueChange = { v ->
+                ttftInput = v.filter { it.isDigit() }.take(3)
+                ttftInput.toIntOrNull()?.let { onTtftChange(it.coerceIn(5, 120)) }
+            },
+            modifier = Modifier.widthIn(min = 80.dp, max = 100.dp),
+            singleLine = true,
+            suffix = { Text("s") },
         )
     }
 }
