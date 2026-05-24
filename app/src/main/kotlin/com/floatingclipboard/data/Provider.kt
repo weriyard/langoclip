@@ -30,15 +30,20 @@ enum class Provider(
     ),
     OPENROUTER(
         displayName = "OpenRouter (free)",
-        defaultModel = "deepseek/deepseek-chat-v3:free",
-        fastModel = "google/gemini-2.0-flash-exp:free",
+        defaultModel = "deepseek/deepseek-v4-flash:free",
+        fastModel = "deepseek/deepseek-v4-flash:free",
+        // Curated subset of openrouter.ai/api/v1/models filtered to ':free' — verified against the
+        // current catalogue. Slugs change occasionally as providers rotate hosted versions; if a
+        // 404 comes back from OpenRouter, refresh this list (and pin a known-good default).
         models = listOf(
-            "deepseek/deepseek-chat-v3:free",
-            "google/gemini-2.0-flash-exp:free",
-            "qwen/qwen-2.5-72b-instruct:free",
+            "deepseek/deepseek-v4-flash:free",
+            "qwen/qwen3-next-80b-a3b-instruct:free",
             "meta-llama/llama-3.3-70b-instruct:free",
-            "nvidia/llama-3.1-nemotron-70b-instruct:free",
-            "mistralai/mistral-nemo:free",
+            "google/gemma-4-31b-it:free",
+            "openai/gpt-oss-120b:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "z-ai/glm-4.5-air:free",
+            "nousresearch/hermes-3-llama-3.1-405b:free",
         ),
         apiKeyConsoleUrl = "https://openrouter.ai/keys",
     );
