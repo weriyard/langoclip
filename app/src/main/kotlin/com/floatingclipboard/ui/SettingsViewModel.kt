@@ -12,17 +12,42 @@ import com.floatingclipboard.data.LocaleManager
 import com.floatingclipboard.data.Provider
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
+import com.floatingclipboard.data.example.ExampleDatabase
+import com.floatingclipboard.data.lemma.LemmaDatabase
 import com.floatingclipboard.data.translation.TranslationDatabase
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+data class LocalDbStats(
+    val lemmaCount: Int?,    // null = DB not loaded
+    val exampleCount: Int?,  // null = DB not loaded
+)
 
 class SettingsViewModel(
     private val repo: SettingsRepository,
     private val llmCache: LlmCache,
     private val translationDb: TranslationDatabase,
+    private val lemmaDb: LemmaDatabase?,
+    private val exampleDb: ExampleDatabase?,
 ) : ViewModel() {
+
+    private val _localDbStats = MutableStateFlow(LocalDbStats(null, null))
+    val localDbStats: StateFlow<LocalDbStats> = _localDbStats.asStateFlow()
+
+    init {
+        // Count rows once at construction so the Settings diagnostics panel can show whether
+        // the bundled SQLite assets actually loaded. Asset failure = silent null in
+        // *.getOptional() — without this we have no in-app signal that the files are missing.
+        viewModelScope.launch {
+            val lemmas = lemmaDb?.lemmaDao()?.count()
+            val examples = exampleDb?.exampleDao()?.count()
+            _localDbStats.value = LocalDbStats(lemmas, examples)
+        }
+    }
 
     /**
      * Wipes both response caches (LlmCache JSON file + Room translations table). Returns the
@@ -140,6 +165,8 @@ class SettingsViewModel(
                     repo = SettingsRepository.getInstance(app),
                     llmCache = LlmCache.getInstance(app),
                     translationDb = TranslationDatabase.getInstance(app),
+                    lemmaDb = LemmaDatabase.getOptional(app),
+                    exampleDb = ExampleDatabase.getOptional(app),
                 )
             }
         }

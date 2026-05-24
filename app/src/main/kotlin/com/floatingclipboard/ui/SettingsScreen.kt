@@ -441,6 +441,17 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.settings_show_logs)) }
 
+            // === Local DB diagnostics ===
+            val dbStats by viewModel.localDbStats.collectAsStateWithLifecycle()
+            Text("Lokalne bazy", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Sprawdza czy bundled assety SQLite się załadowały. en_lemmas normalizuje formy fleksyjne (running→run) dla cache lookupów. en_examples uzupełnia przykłady gdy dictionaryapi.dev ich nie ma.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            LocalDbStatRow(label = "en_lemmas.db", count = dbStats.lemmaCount)
+            LocalDbStatRow(label = "en_examples.db", count = dbStats.exampleCount)
+
             // === Cache ===
             Text("Cache", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -490,6 +501,32 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.settings_pin_to_home)) }
         }
+    }
+}
+
+@Composable
+private fun LocalDbStatRow(label: String, count: Int?) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            modifier = Modifier.weight(1f),
+        )
+        val (statusText, color) = when {
+            count == null -> "✗ brak" to MaterialTheme.colorScheme.error
+            count == 0 -> "✗ pusty (0)" to MaterialTheme.colorScheme.error
+            else -> "✓ ${"%,d".format(count)} wpisów" to MaterialTheme.colorScheme.primary
+        }
+        Text(
+            text = statusText,
+            style = MaterialTheme.typography.bodySmall,
+            color = color,
+        )
     }
 }
 
