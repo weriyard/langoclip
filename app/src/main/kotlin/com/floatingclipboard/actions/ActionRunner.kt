@@ -137,7 +137,7 @@ class ActionRunner(
             throw e
         } catch (e: LlmError) {
             logs.e(TAG, "LLM_ERROR ${e::class.simpleName}: ${e.message}")
-            emit(ActionState.Error(action, e.message ?: "Nieznany błąd"))
+            emit(ActionState.Error(action, messageFor(e, settings)))
         } catch (e: Throwable) {
             logs.e(TAG, "UNKNOWN_ERROR ${e::class.simpleName}: ${e.message}")
             emit(ActionState.Error(action, e.message ?: "Nieznany błąd"))
@@ -222,7 +222,7 @@ class ActionRunner(
             throw e
         } catch (e: LlmError) {
             logs.e(TAG, "LLM_ERROR examples: ${e.message}")
-            emit(com.floatingclipboard.ui.ExamplesState.Error(e.message ?: "Nieznany błąd"))
+            emit(com.floatingclipboard.ui.ExamplesState.Error(messageFor(e, settings)))
         } catch (e: Throwable) {
             logs.e(TAG, "UNKNOWN_ERROR examples: ${e.message}")
             emit(com.floatingclipboard.ui.ExamplesState.Error(e.message ?: "Nieznany błąd"))
@@ -346,7 +346,7 @@ class ActionRunner(
             throw e
         } catch (e: LlmError) {
             logs.e(TAG, "LLM_ERROR senses: ${e.message}")
-            emit(SensesState.Error(e.message ?: "Nieznany błąd"))
+            emit(SensesState.Error(messageFor(e, settings)))
         } catch (e: Throwable) {
             logs.e(TAG, "UNKNOWN_ERROR senses: ${e.message}")
             emit(SensesState.Error(e.message ?: "Nieznany błąd"))
@@ -601,6 +601,32 @@ Respond ONLY with this JSON object, nothing else:
             exampleTranslation = dto.examplePl.ifBlank { sense.exampleTranslation },
             exampleSource = finalSource,
         )
+    }
+
+    /**
+     * Build a user-facing failure message. For [LlmError.AllCandidatesExhausted] we append
+     * actionable suggestions based on the current settings: if "only free" is on, point at the
+     * paid OpenRouter toggle; either way, mention Gemini and note whether the key is already
+     * configured. For other LlmErrors just surface the canonical message.
+     */
+    private fun messageFor(error: LlmError, settings: Settings): String = when (error) {
+        is LlmError.AllCandidatesExhausted -> buildString {
+            val tier = if (settings.onlyFreeOpenRouter) "darmowe" else "płatne"
+            append("Wszystkie próbowane $tier modele OpenRouter zwróciły błąd lub pustkę.")
+            appendLine()
+            appendLine()
+            appendLine("Co dalej:")
+            if (settings.onlyFreeOpenRouter) {
+                appendLine("• Ustawienia → wyłącz \"Tylko darmowe modele\" — przełączy na płatny ")
+                appendLine("  DeepSeek V4 Flash (~\$0.10/M tokenów, twoje kredyty OpenRouter wystarczą na miesiące).")
+            }
+            val geminiNote = if (settings.geminiApiKey.isNotBlank())
+                "klucz jest skonfigurowany"
+            else
+                "skonfiguruj klucz na aistudio.google.com/apikey"
+            appendLine("• Albo Ustawienia → Provider → Gemini ($geminiNote, 1500 req/dzień za darmo).")
+        }
+        else -> error.message ?: "Nieznany błąd"
     }
 
     private fun stripMarkdownWrap(raw: String): String {

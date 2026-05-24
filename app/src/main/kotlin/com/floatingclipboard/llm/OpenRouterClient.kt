@@ -31,7 +31,6 @@ class OpenRouterClient(
         userPrompt: String,
         jsonSchema: JsonElement?,
     ): Result<String> {
-        var lastFailure: Throwable = LlmError.EmptyResponse
         candidates.forEachIndexed { idx, model ->
             logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model")
             val client = OpenAiClient(apiKey, model, OpenAiClient.OPENROUTER_BASE_URL)
@@ -47,10 +46,9 @@ class OpenRouterClient(
                 return result
             }
             logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model quota error, trying next: ${err.message?.take(140)}")
-            lastFailure = err
         }
-        logs?.e(TAG, "all ${candidates.size} candidates exhausted, last error: ${lastFailure.message?.take(140)}")
-        return Result.failure(lastFailure)
+        logs?.e(TAG, "all ${candidates.size} candidates exhausted (every model 402/429)")
+        return Result.failure(LlmError.AllCandidatesExhausted)
     }
 
     override fun stream(
@@ -58,7 +56,6 @@ class OpenRouterClient(
         userPrompt: String,
         jsonSchema: JsonElement?,
     ): Flow<String> = flow {
-        var lastFailure: Throwable? = null
         candidates.forEachIndexed { idx, model ->
             logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model")
             var emitted = false
@@ -68,18 +65,24 @@ class OpenRouterClient(
                     emitted = true
                     emit(delta)
                 }
-                // Stream completed without error → this model is the winner.
+                // Stream completed normally. Some models (e.g. open-source gpt-oss with strict
+                // json_schema) accept the request, finish the SSE stream, but never emit any
+                // content delta — treat that as failure and fall through to the next candidate.
+                // Safe to do because nothing was painted yet (emitted == false).
+                if (!emitted) {
+                    logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model emitted 0 deltas, trying next")
+                    return@forEachIndexed
+                }
                 logs?.d(TAG, "[${idx + 1}/${candidates.size}] $model OK (stream)")
                 OpenRouterModelHint.record(model)
                 return@flow
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                lastFailure = e
                 // If we already started painting tokens, we can't fall back without confusing the
                 // UI — bubble the error to the caller as-is.
                 if (emitted) {
-                    logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model mid-stream error after $emitted deltas, propagating: ${e.message?.take(140)}")
+                    logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model mid-stream error, propagating: ${e.message?.take(140)}")
                     throw e
                 }
                 if (!isQuotaError(e)) {
@@ -89,9 +92,8 @@ class OpenRouterClient(
                 logs?.w(TAG, "[${idx + 1}/${candidates.size}] $model quota error, trying next: ${e.message?.take(140)}")
             }
         }
-        val err = lastFailure ?: LlmError.EmptyResponse
-        logs?.e(TAG, "all ${candidates.size} candidates exhausted, last error: ${err.message?.take(140)}")
-        throw err
+        logs?.e(TAG, "all ${candidates.size} candidates exhausted (every model 402/429/empty)")
+        throw LlmError.AllCandidatesExhausted
     }
 
     private fun isQuotaError(e: Throwable): Boolean = when (e) {
