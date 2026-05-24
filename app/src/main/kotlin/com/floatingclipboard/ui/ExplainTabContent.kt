@@ -99,7 +99,6 @@ private fun SentenceHeaderCard(sourceText: String, fullTranslation: String?) {
                     text = sourceText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 4,
                 )
             }
             if (fullTranslation != null) {

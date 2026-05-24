@@ -27,31 +27,41 @@ Do NOT return it as a stringified JSON. Do NOT wrap it in quotes. Output:
 - Keep idioms and phrasal verbs as a single unit; never split them.
 - Preserve the order of appearance from the original sentence.
 
-## CRITICAL: Multi-word constructions built from short / function words as ONE item
+## Multi-word constructions: only when ADJACENT
 
-When a short word (so, such, as, if, just, even, only, not, no, neither, either, both,
-each, all, every…) or a pronoun forms an INTEGRAL semantic unit with surrounding words,
-KEEP THEM TOGETHER as a single breakdown item. Splitting "so" from "that" or "either"
-from "or" hides the construction the learner is meant to recognise.
+Group several words into ONE item ONLY when they sit next to each other in the sentence
+and form a tight fixed expression. Do NOT attempt to span a long stretch — splitting
+short adjacent helpers from their head loses the construction, but spanning a whole
+clause buries vocabulary you should be showing separately.
 
-Group as one item:
-- **Correlative pairs**: `so ... that`, `such ... that`, `as ... as`, `not as ... as`,
-  `either ... or`, `neither ... nor`, `not only ... but also`, `both ... and`,
-  `the more ... the more`, `whether ... or`, `if ... then`
+Group as ONE item when adjacent:
 - **Semi-modals / quasi-modal verbs**: `have to`, `has to`, `had to`, `need to`,
-  `ought to`, `used to`, `going to`, `had better`, `would rather`, `be able to`,
-  `be allowed to`, `be supposed to`
-- **Discourse markers / fixed expressions**: `by the way`, `of course`, `in fact`,
-  `for example`, `as well as`, `as long as`, `as soon as`, `as far as`, `as if`,
-  `as though`, `no matter what`, `at least`, `at most`, `in order to`
-- **Reflexive / reciprocal**: `each other`, `one another`; reflexive `myself`/`himself`/…
-  when paired with the verb they modify
-- **Pronoun + verb idioms**: `make it`, `take it`, `get it` (figurative meanings),
-  `do it`, `lose it`
+  `ought to`, `used to`, `going to` (when modal-like), `had better`, `would rather`,
+  `be able to`, `be allowed to`, `be supposed to`
+- **Short fixed discourse phrases (2–3 words, adjacent)**: `by the way`, `of course`,
+  `in fact`, `for example`, `as well`, `as long as`, `as soon as`, `as far as`,
+  `as if`, `as though`, `no matter`, `at least`, `at most`, `in order to`
+- **Reciprocal**: `each other`, `one another`
+- **Pronoun + verb idioms (when figurative)**: `make it`, `take it`, `get it`,
+  `lose it`, `mean it`
 
-For these, set `partOfSpeech` to `IDIOM` (or `OTHER` if it doesn't fit any other POS) and
-write the explanation about the FUNCTION of the whole construction (e.g. for `so ... that`
-→ "korelacja przyczynowo-skutkowa").
+Do NOT group across distant words:
+- `so ... that` → "so" is its own item, "that" is its own item (or skipped as
+  conjunction). The correlative meaning belongs in the `explanation` of the part the
+  learner asks about, not in the structure.
+- `either ... or`, `neither ... nor`, `not only ... but also`, `the more ... the more`
+  → same rule. Each piece stands alone; mention the partner in the explanation if
+  useful.
+
+For grouped items, set `partOfSpeech` to `IDIOM` (or `OTHER` if it doesn't fit any other
+POS) and put the FUNCTION of the construction in the explanation.
+
+## Prefer SHORTER items over comprehensive ones
+
+When in doubt, split. The goal is to surface vocabulary and grammar the learner cares
+about — each item should be a tight unit (1 word for vocab, 2–4 words at most for tenses
+and idioms). If you'd need a 5+ word item to "keep it together", that's a sign you should
+split it.
 
 ## CRITICAL: Verbal constructions (tenses, aspect, voice, modals) as ONE item
 

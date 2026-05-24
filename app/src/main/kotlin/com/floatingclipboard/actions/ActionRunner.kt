@@ -368,11 +368,27 @@ class ActionRunner(
                 val items = parseBreakdownItems(rawText)
                     ?: throw IllegalStateException("Breakdown parsowanie nieudane")
                 if (items.isEmpty()) throw IllegalStateException("Breakdown bez itemów")
-                val fullTranslation = extractStringField(rawText, "fullTranslation").orEmpty()
+                // Prefer proper JSON parse for fullTranslation; fall back to the streaming
+                // heuristic so partial-but-complete-enough responses still surface PL.
+                val fullTranslation = parseFullTranslation(rawText)
+                    ?: extractStringField(rawText, "fullTranslation").orEmpty()
                 ActionResult.Breakdown(items = items, fullTranslation = fullTranslation)
             }
         }
     }
+
+    /**
+     * Proper JSON parse for the `fullTranslation` field — only viable after the whole response is
+     * in. Strips markdown fences and handles the "whole-response-as-stringified-JSON" recovery
+     * case that some providers ship in tool use. Returns null when the JSON isn't well-formed
+     * yet so the caller can fall through to the streaming-time heuristic.
+     */
+    private fun parseFullTranslation(rawText: String): String? = runCatching {
+        val root = parseLiberal(stripMarkdownWrap(rawText).trim())
+        (root as? JsonObject)?.get("fullTranslation")?.let { field ->
+            (field as? JsonPrimitive)?.takeIf { it.isString }?.content
+        }
+    }.getOrNull()
 
     /**
      * Heuristic extractor for `"<fieldName>":"..."` value from a JSON string under construction.
@@ -600,9 +616,10 @@ Respond ONLY with this JSON object, nothing else:
     }
 
     companion object {
-        // v9: senses now also carry `exampleSource` so the UI can show provenance chips.
-        // v8 entries deserialize cleanly (default empty → NONE) but lose the badge, so we bump.
-        private const val CACHE_VERSION = "v9"
+        // v10: explain_sentence prompt tightened (no non-adjacent correlatives, subject pronoun
+        // grouped with tense). Old v9 EXPLAIN cache entries would still show over-grouped items,
+        // so we bump even though the prompt hash already keys part of the cache.
+        private const val CACHE_VERSION = "v10"
         private const val TAG = "LLM"
         private const val TAG_SENSES = "Senses"
         private const val HAIKU_MODEL = "claude-haiku-4-5-20251001"
