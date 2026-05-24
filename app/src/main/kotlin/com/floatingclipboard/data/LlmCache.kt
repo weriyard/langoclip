@@ -53,6 +53,15 @@ class LlmCache private constructor(context: Context) {
         if (removed) flushToDisk()
     }
 
+    /** Wipes the entire cache (in-memory + on-disk). User-triggered from Settings. */
+    suspend fun clear() {
+        mutex.withLock { memory.clear() }
+        flushToDisk()
+    }
+
+    /** Approximate size — number of cached entries. Useful for "wyczyść X wpisów" labels. */
+    suspend fun size(): Int = mutex.withLock { memory.size }
+
     private fun evictLruLocked() {
         val keysToRemove = memory.entries
             .sortedBy { it.value.accessedAt }

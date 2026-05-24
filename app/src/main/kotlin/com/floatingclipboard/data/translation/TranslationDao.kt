@@ -12,4 +12,10 @@ interface TranslationDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: TranslationEntry)
+
+    @Query("DELETE FROM translations")
+    suspend fun clearAll()
+
+    @Query("SELECT COUNT(*) FROM translations")
+    suspend fun count(): Int
 }

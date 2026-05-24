@@ -29,6 +29,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -439,6 +440,41 @@ fun SettingsScreen(
                 onClick = onOpenLogs,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.settings_show_logs)) }
+
+            // === Cache ===
+            Text("Cache", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Wyczyść cache tłumaczeń i odpowiedzi LLM. Następne zapytania zostaną wysłane na świeżo do modelu.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            var clearConfirmOpen by remember { mutableStateOf(false) }
+            OutlinedButton(
+                onClick = { clearConfirmOpen = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Wyczyść cache") }
+            if (clearConfirmOpen) {
+                AlertDialog(
+                    onDismissRequest = { clearConfirmOpen = false },
+                    title = { Text("Wyczyścić cache?") },
+                    text = { Text("Usunie wszystkie zapamiętane tłumaczenia słów i odpowiedzi LLM. Operacja nieodwracalna.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            clearConfirmOpen = false
+                            viewModel.clearCache { removed ->
+                                Toast.makeText(
+                                    context,
+                                    if (removed > 0) "Wyczyszczono $removed wpisów" else "Cache był pusty",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }) { Text("Wyczyść") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { clearConfirmOpen = false }) { Text("Anuluj") }
+                    },
+                )
+            }
 
             SourceLegend()
 

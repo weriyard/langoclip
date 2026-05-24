@@ -7,16 +7,35 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.floatingclipboard.data.AppLocale
+import com.floatingclipboard.data.LlmCache
 import com.floatingclipboard.data.LocaleManager
 import com.floatingclipboard.data.Provider
 import com.floatingclipboard.data.Settings
 import com.floatingclipboard.data.SettingsRepository
+import com.floatingclipboard.data.translation.TranslationDatabase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
+class SettingsViewModel(
+    private val repo: SettingsRepository,
+    private val llmCache: LlmCache,
+    private val translationDb: TranslationDatabase,
+) : ViewModel() {
+
+    /**
+     * Wipes both response caches (LlmCache JSON file + Room translations table). Returns the
+     * combined count of removed entries so the UI can show "Wyczyszczono N wpisów".
+     */
+    fun clearCache(onDone: (removed: Int) -> Unit) {
+        viewModelScope.launch {
+            val before = llmCache.size() + translationDb.translationDao().count()
+            llmCache.clear()
+            translationDb.translationDao().clearAll()
+            onDone(before)
+        }
+    }
 
     val state: StateFlow<Settings> = repo.settings.stateIn(
         scope = viewModelScope,
@@ -117,7 +136,11 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                SettingsViewModel(SettingsRepository.getInstance(app))
+                SettingsViewModel(
+                    repo = SettingsRepository.getInstance(app),
+                    llmCache = LlmCache.getInstance(app),
+                    translationDb = TranslationDatabase.getInstance(app),
+                )
             }
         }
     }
