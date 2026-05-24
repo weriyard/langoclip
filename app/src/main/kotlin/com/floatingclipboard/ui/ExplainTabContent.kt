@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +30,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -179,6 +185,17 @@ private fun BreakdownItemRow(
     onShowExamples: (String, String) -> Unit,
 ) {
     val color = colorForPartOfSpeech(item.partOfSpeech)
+    // Compound items (multi-word like "became daily more notable for") get a picker so the user
+    // can drill into a single token instead of running senses lookup on the whole phrase.
+    val words = remember(item.original) {
+        item.original
+            .split(Regex("\\s+"))
+            .map { it.trim(',', '.', '!', '?', ';', ':', '"', '“', '”', '(', ')') }
+            .filter { it.isNotBlank() }
+    }
+    val isCompound = words.size > 1
+    var menuOpen by remember { mutableStateOf(false) }
+
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SelectionContainer(modifier = Modifier.weight(1f)) {
@@ -198,16 +215,56 @@ private fun BreakdownItemRow(
                     )
                 }
             }
-            IconButton(
-                onClick = { onShowExamples(item.original, item.translation) },
-                modifier = Modifier.size(40.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                    contentDescription = stringResource(R.string.examples_show_for_phrase),
-                    tint = color,
-                    modifier = Modifier.size(20.dp),
-                )
+            Box {
+                IconButton(
+                    onClick = {
+                        if (isCompound) menuOpen = true
+                        else onShowExamples(item.original, item.translation)
+                    },
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = stringResource(R.string.examples_show_for_phrase),
+                        tint = color,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                if (isCompound) {
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "„${item.original}\" — cała fraza",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            },
+                            onClick = {
+                                menuOpen = false
+                                onShowExamples(item.original, item.translation)
+                            },
+                        )
+                        HorizontalDivider()
+                        words.forEach { word ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = word,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                },
+                                onClick = {
+                                    menuOpen = false
+                                    onShowExamples(word, "")
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
         if (item.translation.isNotBlank()) {
