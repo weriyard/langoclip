@@ -34,6 +34,7 @@ import java.io.IOException
 class OpenAiClient(
     private val apiKey: String,
     private val model: String,
+    private val baseUrl: String = OPENAI_BASE_URL,
 ) : LlmClient {
 
     override suspend fun complete(
@@ -43,7 +44,7 @@ class OpenAiClient(
     ): Result<String> {
         if (apiKey.isBlank()) return Result.failure(LlmError.MissingApiKey)
         return runCatching {
-            val response = llmHttpClient.post(BASE_URL) {
+            val response = llmHttpClient.post(baseUrl) {
                 header(HttpHeaders.Authorization, "Bearer $apiKey")
                 contentType(ContentType.Application.Json)
                 setBody(buildRequest(systemPrompt, userPrompt, jsonSchema, stream = false))
@@ -73,7 +74,7 @@ class OpenAiClient(
         if (apiKey.isBlank()) throw LlmError.MissingApiKey
         val parser = Json { ignoreUnknownKeys = true }
 
-        llmHttpClient.preparePost(BASE_URL) {
+        llmHttpClient.preparePost(baseUrl) {
             header(HttpHeaders.Authorization, "Bearer $apiKey")
             contentType(ContentType.Application.Json)
             setBody(buildRequest(systemPrompt, userPrompt, jsonSchema, stream = true))
@@ -146,7 +147,10 @@ class OpenAiClient(
     }
 
     companion object {
-        private const val BASE_URL = "https://api.openai.com/v1/chat/completions"
+        const val OPENAI_BASE_URL = "https://api.openai.com/v1/chat/completions"
+        // OpenRouter speaks the OpenAI Chat Completions protocol verbatim — same payload, same SSE
+        // framing — so we just point this client at their gateway.
+        const val OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
     }
 }
 

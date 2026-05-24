@@ -73,9 +73,11 @@ fun SettingsScreen(
     var geminiKey by remember(saved) { mutableStateOf(saved.geminiApiKey) }
     var openAiKey by remember(saved) { mutableStateOf(saved.openAiApiKey) }
     var anthropicKey by remember(saved) { mutableStateOf(saved.anthropicApiKey) }
+    var openRouterKey by remember(saved) { mutableStateOf(saved.openRouterApiKey) }
     var geminiModel by remember(saved) { mutableStateOf(saved.geminiModel) }
     var openAiModel by remember(saved) { mutableStateOf(saved.openAiModel) }
     var anthropicModel by remember(saved) { mutableStateOf(saved.anthropicModel) }
+    var openRouterModel by remember(saved) { mutableStateOf(saved.openRouterModel) }
     var targetLanguage by remember(saved) { mutableStateOf(saved.targetLanguage) }
 
     var keyVisible by remember { mutableStateOf(false) }
@@ -88,17 +90,20 @@ fun SettingsScreen(
         Provider.GEMINI -> geminiKey
         Provider.OPENAI -> openAiKey
         Provider.ANTHROPIC -> anthropicKey
+        Provider.OPENROUTER -> openRouterKey
     }
     val activeModel = when (provider) {
         Provider.GEMINI -> geminiModel
         Provider.OPENAI -> openAiModel
         Provider.ANTHROPIC -> anthropicModel
+        Provider.OPENROUTER -> openRouterModel
     }
     val onActiveKeyChange: (String) -> Unit = { value ->
         when (provider) {
             Provider.GEMINI -> geminiKey = value
             Provider.OPENAI -> openAiKey = value
             Provider.ANTHROPIC -> anthropicKey = value
+            Provider.OPENROUTER -> openRouterKey = value
         }
     }
     val onActiveModelChange: (String) -> Unit = { value ->
@@ -106,6 +111,7 @@ fun SettingsScreen(
             Provider.GEMINI -> geminiModel = value
             Provider.OPENAI -> openAiModel = value
             Provider.ANTHROPIC -> anthropicModel = value
+            Provider.OPENROUTER -> openRouterModel = value
         }
     }
 
@@ -113,9 +119,11 @@ fun SettingsScreen(
             geminiKey != saved.geminiApiKey ||
             openAiKey != saved.openAiApiKey ||
             anthropicKey != saved.anthropicApiKey ||
+            openRouterKey != saved.openRouterApiKey ||
             geminiModel != saved.geminiModel ||
             openAiModel != saved.openAiModel ||
             anthropicModel != saved.anthropicModel ||
+            openRouterModel != saved.openRouterModel ||
             targetLanguage != saved.targetLanguage
 
     Scaffold(
@@ -178,6 +186,7 @@ fun SettingsScreen(
                 Provider.GEMINI -> saved.isUsingDefaultGeminiKey
                 Provider.OPENAI -> saved.isUsingDefaultOpenAiKey
                 Provider.ANTHROPIC -> saved.isUsingDefaultAnthropicKey
+                Provider.OPENROUTER -> saved.isUsingDefaultOpenRouterKey
             }
             if (usingDefault && activeKey.isNotBlank()) {
                 Text(
@@ -292,9 +301,11 @@ fun SettingsScreen(
                         geminiApiKey = geminiKey,
                         openAiApiKey = openAiKey,
                         anthropicApiKey = anthropicKey,
+                        openRouterApiKey = openRouterKey,
                         geminiModel = geminiModel,
                         openAiModel = openAiModel,
                         anthropicModel = anthropicModel,
+                        openRouterModel = openRouterModel,
                         targetLanguage = targetLanguage,
                     )
                 },
@@ -318,6 +329,12 @@ fun SettingsScreen(
                     onClick = { viewModel.resetAnthropicApiKey() },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.settings_reset_anthropic)) }
+            }
+            if (provider == Provider.OPENROUTER && !saved.isUsingDefaultOpenRouterKey) {
+                OutlinedButton(
+                    onClick = { viewModel.resetOpenRouterApiKey() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Resetuj klucz OpenRouter") }
             }
 
             // === App language ===

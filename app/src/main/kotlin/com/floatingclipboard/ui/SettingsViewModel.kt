@@ -22,7 +22,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = Settings(
-            provider = Provider.ANTHROPIC,
+            provider = Provider.OPENROUTER,
             geminiApiKey = "",
             isUsingDefaultGeminiKey = true,
             geminiModel = Provider.GEMINI.defaultModel,
@@ -32,6 +32,9 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
             anthropicApiKey = "",
             isUsingDefaultAnthropicKey = true,
             anthropicModel = Provider.ANTHROPIC.defaultModel,
+            openRouterApiKey = "",
+            isUsingDefaultOpenRouterKey = true,
+            openRouterModel = Provider.OPENROUTER.defaultModel,
             targetLanguage = SettingsRepository.DEFAULT_TARGET_LANGUAGE,
             autoStartBubble = true,
             appLocale = AppLocale.SYSTEM,
@@ -43,9 +46,11 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
         geminiApiKey: String,
         openAiApiKey: String,
         anthropicApiKey: String,
+        openRouterApiKey: String,
         geminiModel: String,
         openAiModel: String,
         anthropicModel: String,
+        openRouterModel: String,
         targetLanguage: String,
     ) {
         viewModelScope.launch {
@@ -60,9 +65,13 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
             if (anthropicApiKey != current.anthropicApiKey ||
                 (anthropicApiKey.isBlank() && !current.isUsingDefaultAnthropicKey)
             ) repo.setAnthropicApiKey(anthropicApiKey)
+            if (openRouterApiKey != current.openRouterApiKey ||
+                (openRouterApiKey.isBlank() && !current.isUsingDefaultOpenRouterKey)
+            ) repo.setOpenRouterApiKey(openRouterApiKey)
             if (geminiModel != current.geminiModel) repo.setGeminiModel(geminiModel)
             if (openAiModel != current.openAiModel) repo.setOpenAiModel(openAiModel)
             if (anthropicModel != current.anthropicModel) repo.setAnthropicModel(anthropicModel)
+            if (openRouterModel != current.openRouterModel) repo.setOpenRouterModel(openRouterModel)
             if (targetLanguage != current.targetLanguage) repo.setTargetLanguage(targetLanguage)
         }
     }
@@ -77,6 +86,10 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
 
     fun resetAnthropicApiKey() {
         viewModelScope.launch { repo.setAnthropicApiKey("") }
+    }
+
+    fun resetOpenRouterApiKey() {
+        viewModelScope.launch { repo.setOpenRouterApiKey("") }
     }
 
     fun setAutoStartBubble(enabled: Boolean) {
