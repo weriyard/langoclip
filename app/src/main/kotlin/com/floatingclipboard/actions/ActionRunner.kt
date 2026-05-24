@@ -74,7 +74,7 @@ class ActionRunner(
 
         logs.d(TAG, "CALL  ${settings.provider.name}/$model action=$action textLen=${userText.length}")
         emit(ActionState.Loading(action))
-        val client = createLlmClient(settings, model, logs)
+        val client = createLlmClient(settings, model, logs, action.task.tier)
         val schema = if (action == Action.EXPLAIN_SENTENCE) BREAKDOWN_SCHEMA else null
         val showPartialText = action == Action.TRANSLATE
         val streamBreakdown = action == Action.EXPLAIN_SENTENCE
@@ -180,7 +180,7 @@ class ActionRunner(
 
         logs.d(TAG, "CALL  examples ${settings.provider.name}/$model phrase='${phrase.take(40)}' variant=$variant")
         emit(com.floatingclipboard.ui.ExamplesState.Loading())
-        val client = createLlmClient(settings, model, logs)
+        val client = createLlmClient(settings, model, logs, LlmTask.PHRASE_EXAMPLES.tier)
         val parser = StreamingArrayParser(json, "examples", ExampleDto.serializer())
         val builder = StringBuilder()
         var lastEmitted = 0
@@ -311,7 +311,7 @@ class ActionRunner(
 
         logs.d(TAG, "CALL  senses ${settings.provider.name}/$sensesModel phrase='${phrase.take(40)}'")
         emit(SensesState.Loading())
-        val client = createLlmClient(settings, sensesModel, logs)
+        val client = createLlmClient(settings, sensesModel, logs, LlmTask.WORD_SENSES.tier)
         val parser = StreamingArrayParser(json, "senses", SenseDto.serializer())
         val builder = StringBuilder()
         var lastEmitted = 0

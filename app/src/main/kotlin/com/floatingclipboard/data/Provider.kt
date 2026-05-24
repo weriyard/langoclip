@@ -71,12 +71,26 @@ enum class Provider(
             "nousresearch/hermes-3-llama-3.1-405b:free",
         )
 
-        // "Only free" toggle OFF → paid routing. Cheapest-good-first; falls through if quota
-        // runs out (shouldn't happen unless OpenRouter credits are empty).
-        val OPENROUTER_PAID_CANDIDATES: List<String> = listOf(
-            "deepseek/deepseek-v4-flash",            // ~$0.10–0.30 / M tokens, strong Polish + JSON
+        // "Only free" toggle OFF → paid routing, split by LlmTask.tier so word translations and
+        // chat use the cheap fast Lite while breakdowns/examples get Flash. All upstream Gemini
+        // pricing is text non-thinking (no reasoning surcharge).
+        //
+        // FAST tier — TRANSLATE / WORD_SENSES / chat. Single-word or short outputs, JSON shape
+        // is shallow. Lite is ~2× cheaper and ~2× faster than Flash; if it stumbles we fall
+        // back to Flash → Llama → DeepSeek.
+        val OPENROUTER_PAID_FAST_CANDIDATES: List<String> = listOf(
+            "google/gemini-2.5-flash-lite",          // ~$0.04 / $0.15 per M, fastest
+            "google/gemini-2.5-flash",               // ~$0.075 / $0.30 per M
+            "meta-llama/llama-3.3-70b-instruct",     // ~$0.05–0.30 / M, well-rounded
+            "deepseek/deepseek-v4-flash",            // strongest Polish but slow + pricier
+        )
+
+        // CAPABLE tier — EXPLAIN_SENTENCE / PHRASE_EXAMPLES. Longer structured JSON with 10+
+        // items where Lite has historically dropped objects. Skip Lite entirely; start with Flash.
+        val OPENROUTER_PAID_CAPABLE_CANDIDATES: List<String> = listOf(
+            "google/gemini-2.5-flash",               // ~$0.075 / $0.30 per M, good JSON discipline
             "meta-llama/llama-3.3-70b-instruct",     // ~$0.05–0.30 / M, well-rounded fallback
-            "google/gemini-2.0-flash",               // fast, dirt cheap
+            "deepseek/deepseek-v4-flash",            // strongest Polish, ~2-3× slower
         )
     }
 }

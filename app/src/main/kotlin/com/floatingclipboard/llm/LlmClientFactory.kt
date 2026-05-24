@@ -8,6 +8,9 @@ fun createLlmClient(
     settings: Settings,
     model: String = settings.activeModel,
     logs: LogStore? = null,
+    /** Selects the OpenRouter paid candidate list (FAST → Lite-first, CAPABLE → Flash-first).
+     *  Ignored by other providers. Defaults to CAPABLE so older callers stay safe. */
+    tier: ModelTier = ModelTier.CAPABLE,
 ): LlmClient = when (settings.provider) {
     Provider.GEMINI -> GeminiClient(apiKey = settings.geminiApiKey, model = model)
     Provider.OPENAI -> OpenAiClient(apiKey = settings.openAiApiKey, model = model)
@@ -17,10 +20,12 @@ fun createLlmClient(
     // providers (each :free model is hosted by a backend with its own per-day quota).
     Provider.OPENROUTER -> OpenRouterClient(
         apiKey = settings.openRouterApiKey,
-        candidates = if (settings.onlyFreeOpenRouter)
+        candidates = if (settings.onlyFreeOpenRouter) {
             Provider.OPENROUTER_FREE_CANDIDATES
-        else
-            Provider.OPENROUTER_PAID_CANDIDATES,
+        } else when (tier) {
+            ModelTier.FAST -> Provider.OPENROUTER_PAID_FAST_CANDIDATES
+            ModelTier.CAPABLE -> Provider.OPENROUTER_PAID_CAPABLE_CANDIDATES
+        },
         logs = logs,
         ttftTimeoutMs = settings.openRouterTtftTimeoutSec.toLong() * 1000L,
     )
