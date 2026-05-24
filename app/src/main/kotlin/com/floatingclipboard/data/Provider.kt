@@ -64,7 +64,9 @@ enum class Provider(
             "meta-llama/llama-3.3-70b-instruct:free",
             "openai/gpt-oss-120b:free",
             "google/gemma-4-31b-it:free",
-            "nvidia/nemotron-3-super-120b-a12b:free",
+            // nvidia/nemotron-3-super-120b removed — observed to hang indefinitely on the SSE
+            // stream (no chunks, no error) which blocks the fallback walker. Re-add if upstream
+            // routing stabilises.
             "z-ai/glm-4.5-air:free",
             "nousresearch/hermes-3-llama-3.1-405b:free",
         )
