@@ -13,7 +13,7 @@ class FloatingClipboardApp : Application() {
         super.onCreate()
         // Read persisted locale preference and apply BEFORE any Activity inflates a layout.
         CoroutineScope(Dispatchers.Main).launch {
-            val settings = SettingsRepository(this@FloatingClipboardApp).settings.first()
+            val settings = SettingsRepository.getInstance(this@FloatingClipboardApp).settings.first()
             LocaleManager.apply(settings.appLocale)
         }
     }

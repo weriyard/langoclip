@@ -61,7 +61,7 @@ data class Settings(
         }
 }
 
-class SettingsRepository(context: Context) {
+class SettingsRepository private constructor(context: Context) {
 
     private val appContext = context.applicationContext
 
@@ -166,6 +166,16 @@ class SettingsRepository(context: Context) {
     }
 
     companion object {
+        // Singleton — different ViewModels used to construct independent instances which kept
+        // their own snapshot of the EncryptedSharedPreferences-backed override flows. A write in
+        // one ViewModel didn't propagate to the others, so a freshly-saved API key looked
+        // missing to ActionRunner.
+        @Volatile private var instance: SettingsRepository? = null
+
+        fun getInstance(context: Context): SettingsRepository = instance ?: synchronized(this) {
+            instance ?: SettingsRepository(context.applicationContext).also { instance = it }
+        }
+
         const val DEFAULT_TARGET_LANGUAGE = "polski"
 
         private const val SECURE_PREFS_NAME = "secure_prefs"

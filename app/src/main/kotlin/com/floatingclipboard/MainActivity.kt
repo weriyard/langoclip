@@ -157,7 +157,7 @@ class MainActivity : ComponentActivity() {
     private fun maybeAutoStartBubble() {
         if (!Settings.canDrawOverlays(this)) return
         lifecycleScope.launch {
-            val settings = SettingsRepository(applicationContext).settings.first()
+            val settings = SettingsRepository.getInstance(applicationContext).settings.first()
             if (settings.autoStartBubble) startBubble()
         }
     }

@@ -107,7 +107,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                SettingsViewModel(SettingsRepository(app))
+                SettingsViewModel(SettingsRepository.getInstance(app))
             }
         }
     }

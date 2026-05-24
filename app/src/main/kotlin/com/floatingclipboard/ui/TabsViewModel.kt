@@ -274,7 +274,7 @@ Help the user understand this word in depth. They may ask for more example sente
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                val settingsRepo = SettingsRepository(app)
+                val settingsRepo = SettingsRepository.getInstance(app)
                 val lemmaDb = LemmaDatabase.getOptional(app)
                 val translationDb = TranslationDatabase.getInstance(app)
                 val exampleDao = ExampleDatabase.getOptional(app)?.exampleDao()
