@@ -127,6 +127,24 @@ class TabsViewModel(
         tabs.putJob(tabId, job)
     }
 
+    /**
+     * Re-run an existing Explain tab in place. Reuses the tab's sourceText, switches state back
+     * to Loading and streams a fresh result with whatever provider/settings are current — so
+     * after the user flips e.g. "Tylko darmowe" off in Settings, this picks the new path up.
+     */
+    fun retryExplain(tabId: TabId) {
+        val tab = tabs.tabs.value.firstOrNull { it.id == tabId } as? Tab.Explain ?: return
+        val text = tab.sourceText
+        if (text.isBlank()) return
+        tabs.updateExplain(tabId) { it.copy(state = ActionState.Loading(Action.EXPLAIN_SENTENCE)) }
+        val job = viewModelScope.launch {
+            runner.runStreaming(Action.EXPLAIN_SENTENCE, text).collect { newState ->
+                tabs.updateExplain(tabId) { it.copy(state = newState) }
+            }
+        }
+        tabs.putJob(tabId, job)
+    }
+
     fun clearPaste() {
         tabs.updatePaste { Tab.Paste() }
     }

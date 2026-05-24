@@ -285,11 +285,7 @@ private fun TabbedShell(
                 is DataTab.Explain -> ExplainTabContent(
                     tab = t,
                     onShowExamples = viewModel::showExamplesAsNewTab,
-                    onRetry = {
-                        // Retry: re-run explain for the same sourceText as a new tab.
-                        // Instead of overwriting current state — more convenient for the user (keeps the error).
-                        // Could also add in-place re-fetch in the future.
-                    },
+                    onRetry = { viewModel.retryExplain(t.id) },
                 )
                 is DataTab.Examples -> ExamplesTabContent(
                     tab = t,
