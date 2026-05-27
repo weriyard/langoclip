@@ -494,6 +494,7 @@ fun SettingsScreen(
             }
 
             SourceLegend()
+            LogColorLegend()
 
             Text(stringResource(R.string.settings_shortcuts_header), style = MaterialTheme.typography.titleMedium)
             Text(
@@ -683,42 +684,89 @@ private fun StatusPill(text: String, accentLive: Boolean) {
  */
 @Composable
 private fun SourceLegend() {
-    Text(
-        "Skróty źródeł (Przykłady)",
-        style = MaterialTheme.typography.titleMedium,
-    )
-    Text(
-        "W zakładce Przykłady, obok ZNACZENIE i ZASTOSOWANIE pokazane są skróty informujące skąd pochodzi tekst EN i tłumaczenie PL.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    val entries = listOf(
-        "DA" to "dictionaryapi.dev (słownik EN online)",
-        "KA" to "kaikki / Wiktionary (lokalna baza w aplikacji)",
-        "TR" to "tłumaczenie EN → PL (LLM aktywnego providera)",
-        "GN" to "przykład wygenerowany (LLM — gdy słownik nie miał)",
-        "—"  to "brak danych / jeszcze nie pobrane",
-    )
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = Modifier.padding(start = 4.dp),
-    ) {
-        entries.forEach { (code, desc) ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = code,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .padding(end = 12.dp)
-                        .widthIn(min = 28.dp),
-                )
-                Text(
-                    text = desc,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    SettingsSectionHeader("Skróty źródeł (Przykłady)")
+    SettingsCard {
+        Text(
+            "Obok ZNACZENIE i ZASTOSOWANIE pokazane są skróty informujące skąd pochodzi tekst EN i tłumaczenie PL.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val entries = listOf(
+            "DA" to "dictionaryapi.dev (słownik EN online)",
+            "KA" to "kaikki / Wiktionary (lokalna baza w aplikacji)",
+            "TR" to "tłumaczenie EN → PL (LLM aktywnego providera)",
+            "GN" to "przykład wygenerowany (LLM — gdy słownik nie miał)",
+            "—"  to "brak danych / jeszcze nie pobrane",
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            entries.forEach { (code, desc) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = code,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .widthIn(min = 28.dp),
+                    )
+                    Text(
+                        text = desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Legend for the coloured accent bar shown next to each log entry in LogsScreen. The bar colour
+ * groups log lines by subsystem so a debugging session is easier to scan visually.
+ */
+@Composable
+private fun LogColorLegend() {
+    SettingsSectionHeader("Kolory logów")
+    SettingsCard {
+        Text(
+            "Pasek koloru po lewej każdej linii w logach grupuje wpisy po tagu — czyli po podsystemie który wygenerował log.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val entries = listOf(
+            Triple("LLM",          MaterialTheme.colorScheme.primary, "wywołania API (CALL/TTFT/DONE/TOKENS), parser JSON, cache hit/miss"),
+            Triple("Senses",       androidx.compose.ui.graphics.Color(0xFF2E7D32), "rozkład znaczeń (dictionaryapi, kaikki HIT/MISS, per-sense translate)"),
+            Triple("OpenRouter",   androidx.compose.ui.graphics.Color(0xFF7B4F9E), "fallback chain — próby kolejnych modeli z listy"),
+            Triple("Chat",         androidx.compose.ui.graphics.Color(0xFF1565C0), "rozmowa w Chat tab (multi-turn)"),
+            Triple("Lemma",        androidx.compose.ui.graphics.Color(0xFF00838F), "en_lemmas DB lookup (np. running → run)"),
+            Triple("TabsViewModel",androidx.compose.ui.graphics.Color(0xFF5D4037), "operacje na zakładkach, otwarcia, anulowania"),
+            Triple("ostrzeżenie",  androidx.compose.ui.graphics.Color(0xFFE69500), "level=W — coś dziwnego, ale nieblokujące"),
+            Triple("błąd",         MaterialTheme.colorScheme.error, "level=E — wywołanie padło, parse failed, etc."),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            entries.forEach { (tag, color, desc) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier
+                            .padding(end = 10.dp)
+                            .size(width = 3.dp, height = 18.dp)
+                            .background(color, MaterialTheme.shapes.extraSmall),
+                    )
+                    Text(
+                        text = tag,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = color,
+                        modifier = Modifier
+                            .padding(end = 10.dp)
+                            .widthIn(min = 100.dp),
+                    )
+                    Text(
+                        text = desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
