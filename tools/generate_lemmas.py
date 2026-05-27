@@ -49,6 +49,11 @@ def main():
         )
         sys.exit(1)
 
+    # Start fresh — `CREATE TABLE IF NOT EXISTS` on a stale DB would silently keep an old schema
+    # (e.g. missing NOT NULL), so we drop the file and recreate it cleanly.
+    for stale in (OUTPUT_FILE, f"{OUTPUT_FILE}-shm", f"{OUTPUT_FILE}-wal"):
+        Path(stale).unlink(missing_ok=True)
+
     conn = sqlite3.connect(OUTPUT_FILE)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
@@ -56,7 +61,7 @@ def main():
     # String?). Without the explicit NOT NULL, SQLite allows NULL even on PRIMARY KEY columns
     # (legacy quirk) and Room's strict schema check throws IllegalStateException on first open.
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS lemma_forms (
+        CREATE TABLE lemma_forms (
             surface TEXT NOT NULL PRIMARY KEY,
             lemma   TEXT NOT NULL
         )
@@ -95,7 +100,12 @@ def main():
         "INSERT OR IGNORE INTO lemma_forms (surface, lemma) VALUES (?, ?)",
         pairs.items(),
     )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_surface ON lemma_forms(surface)")
+    conn.execute("CREATE INDEX idx_surface ON lemma_forms(surface)")
+    conn.commit()
+    # Mirror generate_examples.py: checkpoint WAL into the main file + flip to DELETE journal
+    # so the asset is a single self-contained .db (no -shm / -wal companions to ship).
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    conn.execute("PRAGMA journal_mode=DELETE")
     conn.commit()
 
     size_mb = Path(OUTPUT_FILE).stat().st_size / (1024 * 1024)
