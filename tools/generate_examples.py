@@ -110,18 +110,22 @@ def main():
     conn = sqlite3.connect(OUTPUT_FILE)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    # Composite PRIMARY KEY (lemma, pos, text) is required because the Kotlin entity declares
+    # `primaryKeys = ["lemma", "pos", "text"]`. Without it Room's schema validator throws on the
+    # first DAO call and the DB silently degrades to "✗ brak" in Settings diagnostics.
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS examples (
+        CREATE TABLE examples (
             lemma TEXT NOT NULL,
             pos   TEXT NOT NULL,
-            text  TEXT NOT NULL
+            text  TEXT NOT NULL,
+            PRIMARY KEY(lemma, pos, text)
         )
     """)
     conn.executemany(
         "INSERT INTO examples (lemma, pos, text) VALUES (?, ?, ?)",
         rows,
     )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_examples_lookup ON examples(lemma, pos)")
+    conn.execute("CREATE INDEX idx_examples_lookup ON examples(lemma, pos)")
     conn.commit()
     # Konsolidujemy WAL z głównym plikiem i wracamy do dziennika DELETE — bez tego
     # obok `.db` zostają sieroty `.db-shm` / `.db-wal`, które potem trafiałyby do APK.
