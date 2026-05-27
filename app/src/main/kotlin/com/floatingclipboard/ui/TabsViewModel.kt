@@ -332,7 +332,7 @@ Help the user understand this word in depth. They may ask for more example sente
                         exampleDao = exampleDao,
                     ),
                     orchestrator = TranslationOrchestrator(
-                        lemmatizer = Lemmatizer(lemmaDb),
+                        lemmatizer = Lemmatizer(lemmaDb, LogStore.getInstance(app)),
                         translationDao = translationDb.translationDao(),
                         settingsRepo = settingsRepo,
                         localModel = NoopLocalModelClient,

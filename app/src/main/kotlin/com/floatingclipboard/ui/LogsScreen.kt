@@ -172,6 +172,7 @@ private fun LogRow(entry: LogEntry) {
         entry.tag.equals("Senses", ignoreCase = true) -> Color(0xFF2E7D32)         // green 800
         entry.tag.equals("OpenRouter", ignoreCase = true) -> Color(0xFF7B4F9E)     // purple 700
         entry.tag.equals("Chat", ignoreCase = true) -> Color(0xFF1565C0)           // blue 800
+        entry.tag.equals("Lemma", ignoreCase = true) -> Color(0xFF00838F)          // cyan 800
         entry.tag.equals("TabsViewModel", ignoreCase = true) -> Color(0xFF5D4037)  // brown 700
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }

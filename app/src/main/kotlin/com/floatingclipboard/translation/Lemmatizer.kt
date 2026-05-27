@@ -1,18 +1,30 @@
 package com.floatingclipboard.translation
 
+import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.lemma.LemmaDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class Lemmatizer(private val db: LemmaDatabase?) {
+class Lemmatizer(
+    private val db: LemmaDatabase?,
+    private val logs: LogStore? = null,
+) {
 
     suspend fun lemmatize(input: String): String {
         val w = input.lowercase().trim()
         if (w.contains(' ')) return w   // multi-word: cache by original, LLM returns baseForm
 
-        return IRREGULAR_FORMS[w]
-            ?: dbLookup(w)
-            ?: applyHeuristics(w)
+        IRREGULAR_FORMS[w]?.let {
+            logs?.d(TAG, "irregular '$w' → '$it'")
+            return it
+        }
+        dbLookup(w)?.let {
+            logs?.d(TAG, "en_lemmas HIT '$w' → '$it'")
+            return it
+        }
+        val stem = applyHeuristics(w)
+        logs?.d(TAG, "en_lemmas MISS '$w' → heuristic '$stem'")
+        return stem
     }
 
     /**
@@ -47,6 +59,8 @@ class Lemmatizer(private val db: LemmaDatabase?) {
     }
 
     companion object {
+        private const val TAG = "Lemma"
+
         val IRREGULAR_FORMS = mapOf(
             "was" to "be", "were" to "be", "been" to "be", "am" to "be", "is" to "be", "are" to "be",
             "had" to "have", "has" to "have",
