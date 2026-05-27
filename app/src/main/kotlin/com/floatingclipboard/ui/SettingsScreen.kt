@@ -695,8 +695,8 @@ private fun SourceLegend() {
     val entries = listOf(
         "DA" to "dictionaryapi.dev (słownik EN online)",
         "KA" to "kaikki / Wiktionary (lokalna baza w aplikacji)",
-        "HA" to "Haiku — tłumaczenie EN → PL",
-        "HG" to "Haiku — wygenerowane (gdy słownik nie miał przykładu)",
+        "TR" to "tłumaczenie EN → PL (LLM aktywnego providera)",
+        "GN" to "przykład wygenerowany (LLM — gdy słownik nie miał)",
         "—"  to "brak danych / jeszcze nie pobrane",
     )
     Column(

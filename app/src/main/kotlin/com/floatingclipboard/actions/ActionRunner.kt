@@ -539,13 +539,14 @@ class ActionRunner(
     }
 
     /**
-     * One Haiku JSON call per sense covering both translation (`meaning` + `example` → PL) and
-     * — when [WordSense.example] is blank — generation of a fresh English example sentence.
+     * One LLM JSON call per sense covering both translation (`meaning` + `example` → PL) and —
+     * when [WordSense.example] is blank — generation of a fresh English example sentence.
      *
-     * Always uses Anthropic Haiku regardless of the configured provider, since the orchestration
-     * chain (dictionaryapi.dev → en_examples.db → here) is structured around Anthropic latency/cost.
-     * Returns the original sense unchanged when the call fails or parses garbage — UI degrades to
-     * the EN-only state, no exception thrown to the caller.
+     * Uses the configured provider with [ModelTier.FAST] selection: OpenRouter paid → Gemini
+     * Flash Lite (Lite is #1 in the paid FAST candidate list), OpenRouter free → DeepSeek V4
+     * Flash :free, Anthropic → Haiku, Gemini direct → 2.5 Flash. Returns the original sense
+     * unchanged when the call fails or parses garbage — UI degrades to the EN-only state, no
+     * exception thrown to the caller.
      */
     private suspend fun completeSense(
         lemma: String,
@@ -589,8 +590,11 @@ Respond ONLY with this JSON object, nothing else:
 """.trimIndent()
 
         val raw = runCatching {
-            // Always Anthropic Haiku — provider override keeps this independent of user settings.
-            val client = createLlmClient(settings.copy(provider = Provider.ANTHROPIC), HAIKU_MODEL)
+            // Honours the user's configured provider + uses FAST tier so OpenRouter routes to
+            // Gemini Flash Lite first (cheap + fast for short JSON), Anthropic stays on Haiku,
+            // Gemini direct on 2.5 Flash.
+            val model = ModelRouter.modelFor(LlmTask.WORD_SENSES, settings)
+            val client = createLlmClient(settings, model, logs, LlmTask.WORD_SENSES.tier)
             val builder = StringBuilder()
             client.stream(
                 systemPrompt = "You are a translation API. Respond with valid JSON only — no prose, no markdown fences.",
@@ -599,7 +603,7 @@ Respond ONLY with this JSON object, nothing else:
                 onUsage = { u -> logs.d(TAG_SENSES, "[${idx + 1}/$total] TOKENS in=${u.inputTokens} out=${u.outputTokens}") },
             ).collect { delta -> builder.append(delta) }
             builder.toString().trim()
-        }.onFailure { logs.w(TAG_SENSES, "[${idx + 1}/$total] Haiku FAILED: ${it.message}") }
+        }.onFailure { logs.w(TAG_SENSES, "[${idx + 1}/$total] LLM FAILED: ${it.message}") }
             .getOrNull()
 
         if (raw.isNullOrBlank()) {
@@ -612,12 +616,12 @@ Respond ONLY with this JSON object, nothing else:
             .getOrNull() ?: return sense
 
         val elapsed = System.currentTimeMillis() - started
-        logs.d(TAG_SENSES, "[${idx + 1}/$total] Haiku $mode ${elapsed}ms")
+        logs.d(TAG_SENSES, "[${idx + 1}/$total] LLM $mode ${elapsed}ms")
         val finalExample = dto.example.ifBlank { sense.example }
         val finalSource = when {
             // Keep upstream attribution (API or KAIKKI) — completeSense only translates in that case.
             sense.exampleSource != ExampleSource.NONE -> sense.exampleSource
-            // Was blank, Haiku produced one — mark as generated.
+            // Was blank, LLM produced one — mark as generated.
             finalExample.isNotBlank() -> ExampleSource.GENERATED
             else -> ExampleSource.NONE
         }

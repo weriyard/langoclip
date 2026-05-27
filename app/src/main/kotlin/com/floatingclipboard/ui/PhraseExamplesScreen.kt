@@ -395,18 +395,20 @@ private fun SectionBlock(
 
 // Source codes used in SenseRow chips — see SettingsScreen for the legend rendered to the user.
 // DA = dictionaryapi.dev, KA = kaikki (local Wiktionary DB),
-// HA = Haiku translation, HG = Haiku generated, — = pending / unavailable.
+// TR = LLM translation, GN = LLM-generated example, — = pending / unavailable.
+// (LLM means whichever provider the user has configured — OpenRouter / Anthropic / Gemini /
+// OpenAI. We don't bake the provider name into the chip so the label survives provider swaps.)
 private fun meaningSourceChips(sense: WordSense): List<String> =
-    listOf("DA", if (sense.meaningTranslation.isNotBlank()) "HA" else "—")
+    listOf("DA", if (sense.meaningTranslation.isNotBlank()) "TR" else "—")
 
 private fun exampleSourceChips(sense: WordSense): List<String> {
     val en = when (sense.exampleSource) {
         com.floatingclipboard.actions.ExampleSource.API -> "DA"
         com.floatingclipboard.actions.ExampleSource.KAIKKI -> "KA"
-        com.floatingclipboard.actions.ExampleSource.GENERATED -> "HG"
+        com.floatingclipboard.actions.ExampleSource.GENERATED -> "GN"
         com.floatingclipboard.actions.ExampleSource.NONE -> "—"
     }
-    val pl = if (sense.exampleTranslation.isNotBlank()) "HA" else "—"
+    val pl = if (sense.exampleTranslation.isNotBlank()) "TR" else "—"
     return listOf(en, pl)
 }
 
