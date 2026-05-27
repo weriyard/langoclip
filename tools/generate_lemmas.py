@@ -52,9 +52,12 @@ def main():
     conn = sqlite3.connect(OUTPUT_FILE)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    # NOT NULL on `surface` is required to match the Kotlin entity (val surface: String, not
+    # String?). Without the explicit NOT NULL, SQLite allows NULL even on PRIMARY KEY columns
+    # (legacy quirk) and Room's strict schema check throws IllegalStateException on first open.
     conn.execute("""
         CREATE TABLE IF NOT EXISTS lemma_forms (
-            surface TEXT PRIMARY KEY,
+            surface TEXT NOT NULL PRIMARY KEY,
             lemma   TEXT NOT NULL
         )
     """)

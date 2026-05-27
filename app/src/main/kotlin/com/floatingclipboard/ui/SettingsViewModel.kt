@@ -42,9 +42,12 @@ class SettingsViewModel(
         // Count rows once at construction so the Settings diagnostics panel can show whether
         // the bundled SQLite assets actually loaded. Asset failure = silent null in
         // *.getOptional() — without this we have no in-app signal that the files are missing.
+        // runCatching: opening a bundled DB can throw IllegalStateException from Room's strict
+        // schema validation if the .db file's column/index shape drifts from the @Entity. We
+        // don't want a stale asset to crash the whole Settings screen — show ✗ brak instead.
         viewModelScope.launch {
-            val lemmas = lemmaDb?.lemmaDao()?.count()
-            val examples = exampleDb?.exampleDao()?.count()
+            val lemmas = runCatching { lemmaDb?.lemmaDao()?.count() }.getOrNull()
+            val examples = runCatching { exampleDb?.exampleDao()?.count() }.getOrNull()
             _localDbStats.value = LocalDbStats(lemmas, examples)
         }
     }

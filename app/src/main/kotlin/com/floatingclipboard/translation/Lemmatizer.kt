@@ -11,8 +11,20 @@ class Lemmatizer(private val db: LemmaDatabase?) {
         if (w.contains(' ')) return w   // multi-word: cache by original, LLM returns baseForm
 
         return IRREGULAR_FORMS[w]
-            ?: db?.let { withContext(Dispatchers.IO) { it.lemmaDao().lookup(w)?.lemma } }
+            ?: dbLookup(w)
             ?: applyHeuristics(w)
+    }
+
+    /**
+     * Wrapped in [runCatching] because the bundled SQLite asset can fail Room's strict schema
+     * validation on first open (e.g. NOT NULL constraint drift between the .db file and the
+     * Kotlin entity). When that happens we fall through to the heuristic stemmer rather than
+     * crashing the whole flow.
+     */
+    private suspend fun dbLookup(w: String): String? = db?.let {
+        runCatching {
+            withContext(Dispatchers.IO) { it.lemmaDao().lookup(w)?.lemma }
+        }.getOrNull()
     }
 
     private fun applyHeuristics(w: String): String {
