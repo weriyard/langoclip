@@ -1,13 +1,17 @@
 package com.floatingclipboard.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -20,7 +24,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -93,62 +97,132 @@ fun PasteTabContent(
 
     Column(
         modifier = modifier
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(stringResource(R.string.paste_title), style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(
-            value = tfValue,
-            onValueChange = { newValue ->
-                tfValue = newValue
-                if (newValue.text != tab.text) onTextChange(newValue.text)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 160.dp),
-            label = { Text(stringResource(R.string.paste_field_label)) },
-            trailingIcon = {
+        // Hero — larger, friendlier title than the old labelSmall section header.
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.paste_title),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "Wklej angielski tekst lub zaznacz słowo żeby je przetłumaczyć.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Text input as a Card so it visually anchors the screen instead of looking like a
+        // utility input. Empty state shows a multi-line placeholder explaining what to do.
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(modifier = Modifier.padding(14.dp)) {
+                if (tfValue.text.isEmpty()) {
+                    Text(
+                        text = "Wklej tutaj angielski tekst…\n\nApka rozbierze go na czynniki: konstrukcje czasowe, idiomy, znaczenia poszczególnych słów.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.heightIn(min = 140.dp),
+                    )
+                }
+                androidx.compose.foundation.text.BasicTextField(
+                    value = tfValue,
+                    onValueChange = { newValue ->
+                        tfValue = newValue
+                        if (newValue.text != tab.text) onTextChange(newValue.text)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 140.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(
+                        MaterialTheme.colorScheme.primary
+                    ),
+                )
                 if (tab.text.isNotEmpty()) {
-                    IconButton(onClick = onClearAll) {
+                    IconButton(
+                        onClick = onClearAll,
+                        modifier = Modifier.align(Alignment.TopEnd).size(28.dp),
+                    ) {
                         Icon(
                             Icons.Default.Clear,
                             contentDescription = stringResource(R.string.paste_clear_text_and_result),
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-            },
-        )
+            }
+        }
 
+        // Action buttons — bigger, more affordance. Primary (Translate) takes weight=1, secondary
+        // (Explain) too; word-translate sits on its own row when present.
+        val canRun = tab.text.isNotBlank() && tab.actionState !is ActionState.Loading
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            val canRun = tab.text.isNotBlank() && tab.actionState !is ActionState.Loading
-            Button(onClick = onTranslate, enabled = canRun) {
-                Text(stringResource(R.string.action_translate))
+            Button(
+                onClick = onTranslate,
+                enabled = canRun,
+                shape = MaterialTheme.shapes.medium,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 14.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = stringResource(R.string.action_translate),
+                    style = MaterialTheme.typography.titleSmall,
+                )
             }
-            Button(onClick = onExplain, enabled = canRun) {
-                Text(stringResource(R.string.action_explain))
+            androidx.compose.material3.OutlinedButton(
+                onClick = onExplain,
+                enabled = canRun,
+                shape = MaterialTheme.shapes.medium,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 14.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = stringResource(R.string.action_explain),
+                    style = MaterialTheme.typography.titleSmall,
+                )
             }
-            if (selectedWord != null) {
-                Button(onClick = { onTranslateWord(selectedWord, tab.text) }) {
-                    Text("\"$selectedWord\"")
-                }
+        }
+        if (selectedWord != null) {
+            androidx.compose.material3.FilledTonalButton(
+                onClick = { onTranslateWord(selectedWord, tab.text) },
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
+            ) {
+                Text(
+                    text = "Przetłumacz: \"$selectedWord\"  →",
+                    style = MaterialTheme.typography.titleSmall,
+                )
             }
-            if (tab.actionState !is ActionState.Idle) {
-                IconButton(
-                    onClick = onClearResult,
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Clear,
-                        contentDescription = stringResource(R.string.paste_clear_result),
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+        }
+        if (tab.actionState !is ActionState.Idle) {
+            // Clear-result chip — only visible when there's something to clear.
+            androidx.compose.material3.TextButton(
+                onClick = onClearResult,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    Icons.Default.Clear,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.paste_clear_result))
             }
         }
 

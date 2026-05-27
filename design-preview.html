@@ -1,0 +1,919 @@
+ok  aja <!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Floating Clipboard — design proposal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* === Design tokens === */
+  :root {
+    /* Current ("before") — Material 3 default-ish */
+    --c-surface: #FFFBFE;
+    --c-surface-variant: #E7E0EC;
+    --c-on-surface: #1C1B1F;
+    --c-on-surface-variant: #49454F;
+    --c-primary: #6750A4;
+    --c-outline: #79747E;
+    --c-outline-variant: #CAC4D0;
+    --c-error: #B3261E;
+    /* POS colors — same in both */
+    --c-pos-adj: #FF9800;
+    --c-pos-verb: #4CAF50;
+    --c-pos-noun: #2196F3;
+
+    /* Proposed ("after") palette — warm accent, softer surfaces, more layers */
+    --d-bg: #FAF7F2;
+    --d-surface-1: #FFFFFF;     /* card */
+    --d-surface-2: #F3EFE7;     /* section */
+    --d-surface-3: #ECE6DA;     /* nested */
+    --d-on-surface: #1A1815;
+    --d-on-surface-mute: #6B655A;
+    --d-primary: #B85C2A;       /* warm terracotta brand */
+    --d-primary-soft: #FBE9DF;
+    --d-outline: #D6CFC1;
+    --d-outline-strong: #A89E89;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 32px;
+    background: #f5f5f7;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #111;
+    line-height: 1.5;
+  }
+  h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 16px; letter-spacing: 0.08em; text-transform: uppercase; color: #666; }
+  .intro { max-width: 780px; color: #444; margin-bottom: 40px; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 1200px;
+    margin: 0 auto 64px;
+  }
+  .label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .label .tag {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 99px;
+  }
+  .label .tag.before { background: #efefef; color: #555; }
+  .label .tag.after { background: #B85C2A; color: white; }
+  .phone {
+    background: #f5f5f7;
+    border: 1px solid #ddd;
+    border-radius: 24px;
+    padding: 20px;
+    min-height: 520px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.06);
+  }
+  .phone.before { background: var(--c-surface); }
+  .phone.after { background: var(--d-bg); }
+
+  /* === BEFORE: SenseRow current === */
+  .b-senserow {
+    padding: 8px 4px;
+  }
+  .b-pos-chip {
+    display: inline-block;
+    background: rgba(255, 152, 0, 0.15);
+    color: var(--c-pos-adj);
+    font-weight: 700;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 10px;
+    font-family: 'Inter', sans-serif;
+  }
+  .b-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--c-primary);
+    margin: 0;
+  }
+  .b-source {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--c-outline);
+  }
+  .b-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0 4px;
+  }
+  .b-text-en { font-size: 15px; color: var(--c-on-surface); margin: 2px 0 0 4px; }
+  .b-text-pl { font-size: 15px; color: var(--c-on-surface-variant); margin: 2px 0 0 4px; }
+  .b-text-pl::before { content: "→ "; }
+  .b-divider {
+    border: 0;
+    border-top: 1px solid var(--c-outline-variant);
+    margin: 14px 0;
+    opacity: 0.5;
+  }
+
+  /* === AFTER: SenseRow proposed === */
+  .a-senserow {
+    background: var(--d-surface-1);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 12px;
+    border: 1px solid var(--d-outline);
+  }
+  .a-pos-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 152, 0, 0.12);
+    color: #C77900;
+    font-weight: 600;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    letter-spacing: 0.02em;
+  }
+  .a-pos-chip .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--c-pos-adj);
+  }
+  .a-section {
+    background: var(--d-surface-2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-top: 12px;
+  }
+  .a-section.example {
+    background: var(--d-primary-soft);
+  }
+  .a-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .a-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--d-primary);
+    letter-spacing: 0.06em;
+  }
+  .a-source-chips {
+    display: flex;
+    gap: 4px;
+  }
+  .a-source-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 99px;
+    background: rgba(0,0,0,0.06);
+    color: var(--d-on-surface-mute);
+    font-weight: 500;
+  }
+  .a-text-en {
+    font-size: 15px;
+    color: var(--d-on-surface);
+    line-height: 1.4;
+  }
+  .a-text-pl {
+    font-size: 14px;
+    color: var(--d-on-surface-mute);
+    line-height: 1.4;
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .a-chat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: white;
+    border: 1px solid var(--d-outline);
+    border-radius: 8px;
+    width: 28px; height: 28px;
+    justify-content: center;
+    color: var(--d-primary);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* === BEFORE: app bar === */
+  .b-appbar {
+    border-bottom: 1px solid var(--c-outline-variant);
+    padding: 12px 16px;
+    margin: -20px -20px 16px;
+  }
+  .b-appbar h3 { margin: 0; font-size: 18px; font-weight: 500; }
+  .b-appbar .provider { font-size: 11px; color: var(--c-outline); }
+
+  /* === AFTER: app bar === */
+  .a-appbar {
+    background: var(--d-surface-1);
+    border-radius: 14px;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: -20px -20px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .a-appbar h3 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .a-appbar .provider {
+    display: flex; gap: 6px; align-items: center;
+    background: var(--d-primary-soft);
+    color: var(--d-primary);
+    padding: 3px 8px;
+    border-radius: 99px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .a-appbar .provider .ping {
+    width: 6px; height: 6px;
+    background: var(--d-primary);
+    border-radius: 50%;
+    animation: ping 2s ease-in-out infinite;
+  }
+  @keyframes ping {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* settings panel styling */
+  .b-setting-row, .a-setting-row {
+    margin: 16px 0;
+  }
+  .b-setting-row h4 { font-size: 14px; font-weight: 500; margin: 0 0 4px; }
+  .b-setting-row p { font-size: 12px; color: var(--c-on-surface-variant); margin: 0; }
+  .b-setting-row .switch {
+    display: inline-block;
+    background: var(--c-primary);
+    width: 40px; height: 22px;
+    border-radius: 99px;
+    position: relative;
+  }
+  .b-setting-row .switch::after {
+    content: ''; position: absolute;
+    width: 16px; height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; right: 3px;
+  }
+
+  .a-setting-card {
+    background: var(--d-surface-1);
+    border-radius: 16px;
+    padding: 18px;
+    margin: 12px 0;
+    border: 1px solid var(--d-outline);
+  }
+  .a-setting-card .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .a-setting-card h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .a-setting-card p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--d-on-surface-mute);
+    line-height: 1.5;
+  }
+  .a-setting-card .switch {
+    background: var(--d-primary);
+    width: 44px; height: 24px;
+    border-radius: 99px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .a-setting-card .switch::after {
+    content: ''; position: absolute;
+    width: 18px; height: 18px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; right: 3px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .a-status-pill {
+    margin-top: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--d-surface-2);
+    border-radius: 8px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--d-on-surface-mute);
+  }
+  .a-status-pill .live-dot {
+    width: 6px; height: 6px;
+    background: #22c55e;
+    border-radius: 50%;
+  }
+
+  /* === Paste screen === */
+  .b-paste-title { font-size: 16px; font-weight: 500; margin: 0 0 12px; }
+  .b-textfield {
+    border: 1px solid var(--c-outline);
+    border-radius: 4px;
+    padding: 12px;
+    min-height: 140px;
+    font-size: 14px;
+    color: var(--c-on-surface);
+    background: var(--c-surface);
+    position: relative;
+  }
+  .b-textfield .floating-label {
+    position: absolute;
+    top: -8px;
+    left: 8px;
+    background: var(--c-surface);
+    padding: 0 4px;
+    font-size: 11px;
+    color: var(--c-on-surface-variant);
+  }
+  .b-textfield .ph { color: #aaa; font-size: 14px; }
+  .b-btnrow {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .b-btn {
+    background: var(--c-primary);
+    color: white;
+    border: 0;
+    padding: 8px 18px;
+    border-radius: 99px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .b-btn.outline {
+    background: transparent;
+    color: var(--c-primary);
+    border: 1px solid var(--c-outline);
+  }
+  .b-result-card {
+    border: 1px solid var(--c-outline-variant);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 16px;
+    background: var(--c-surface);
+  }
+  .b-result-card .label { font-size: 11px; font-weight: 600; color: var(--c-primary); margin: 0 0 6px; }
+  .b-result-card .text { font-size: 14px; color: var(--c-on-surface); margin: 0; }
+
+  /* AFTER paste */
+  .a-paste-hero {
+    margin: 8px 0 16px;
+    padding: 0 4px;
+  }
+  .a-paste-hero h2 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 4px;
+    color: var(--d-on-surface);
+    text-transform: none;
+  }
+  .a-paste-hero p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--d-on-surface-mute);
+  }
+  .a-textcard {
+    background: var(--d-surface-1);
+    border: 1px solid var(--d-outline);
+    border-radius: 16px;
+    padding: 16px;
+    min-height: 160px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .a-textcard:focus-within { border-color: var(--d-primary); }
+  .a-textcard .ph {
+    color: var(--d-on-surface-mute);
+    font-size: 14px;
+    line-height: 1.6;
+    opacity: 0.7;
+  }
+  .a-textcard .text-real {
+    color: var(--d-on-surface);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .a-paste-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 6px 10px;
+    background: var(--d-surface-2);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--d-on-surface-mute);
+  }
+  .a-paste-hint .kbd {
+    font-family: 'JetBrains Mono', monospace;
+    background: white;
+    border: 1px solid var(--d-outline);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+  }
+  .a-actionrow {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .a-action-primary {
+    flex: 1;
+    background: var(--d-primary);
+    color: white;
+    border: 0;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    letter-spacing: -0.01em;
+  }
+  .a-action-secondary {
+    flex: 1;
+    background: var(--d-surface-1);
+    color: var(--d-on-surface);
+    border: 1px solid var(--d-outline);
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    letter-spacing: -0.01em;
+  }
+  .a-action-word {
+    background: var(--d-primary-soft);
+    color: var(--d-primary);
+    border: 0;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .a-result-card {
+    background: var(--d-surface-1);
+    border: 1px solid var(--d-outline);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 16px;
+  }
+  .a-result-card .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .a-result-card .head .label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--d-primary);
+    letter-spacing: 0.06em;
+  }
+  .a-result-card .copy-btn {
+    background: var(--d-surface-2);
+    border: 0;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--d-on-surface-mute);
+    cursor: pointer;
+  }
+  .a-result-card .text {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--d-on-surface);
+  }
+
+  /* === Onboarding (bonus) === */
+  .o-screen {
+    background: var(--d-bg);
+    border-radius: 24px;
+    padding: 32px 24px;
+    border: 1px solid #ddd;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.06);
+    text-align: center;
+  }
+  .o-screen .step-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 32px; }
+  .o-screen .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--d-outline); }
+  .o-screen .step-dot.active { background: var(--d-primary); width: 24px; border-radius: 99px; }
+  .o-screen .illustration {
+    width: 120px; height: 120px;
+    margin: 0 auto 24px;
+    background: var(--d-primary-soft);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+  }
+  .o-screen h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 12px;
+    color: var(--d-on-surface);
+    text-transform: none;
+    letter-spacing: -0.02em;
+  }
+  .o-screen p {
+    font-size: 14px;
+    color: var(--d-on-surface-mute);
+    margin: 0 0 24px;
+    line-height: 1.5;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .o-screen .o-cta {
+    background: var(--d-primary);
+    color: white;
+    border: 0;
+    padding: 14px 32px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  .o-screen .o-skip {
+    background: transparent;
+    color: var(--d-on-surface-mute);
+    border: 0;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .summary {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 28px;
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e5e5e5;
+  }
+  .summary h2 { color: #111; }
+  .summary ul { margin: 16px 0; padding-left: 20px; }
+  .summary li { margin: 8px 0; }
+  .summary code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Floating Clipboard — propozycja redesignu</h1>
+<p class="intro">
+  Mockup pokazuje 3 kluczowe ekrany w wersji obecnej (po lewej) i proponowanej (po prawej). Zmiany:
+  warm-neutral paleta z brand accent (terracotta) zamiast Material You purple, konsystentne karty
+  z miękkimi rogami, lepszy podział hierarchii (Surface 1/2/3), drobne live-state pille.
+</p>
+
+<!-- === ROW 1: SenseRow === -->
+<div class="row">
+  <div>
+    <div class="label">
+      <h2>SenseRow — Examples tab (1 sens)</h2>
+      <span class="tag before">Teraz</span>
+    </div>
+    <div class="phone before">
+      <div class="b-senserow">
+        <div>
+          <span class="b-pos-chip">PRZYMIOTNIK</span>
+        </div>
+        <div class="b-section-head">
+          <span class="b-section-title">ZNACZENIE</span>
+          <span class="b-source">EN: DA · PL: HA</span>
+        </div>
+        <p class="b-text-en">Not constrained.</p>
+        <p class="b-text-pl">Nieograniczony.</p>
+        <div class="b-section-head">
+          <span class="b-section-title">ZASTOSOWANIE</span>
+          <span class="b-source">EN: KA · PL: HA</span>
+        </div>
+        <p class="b-text-en">"He was given free rein."</p>
+        <p class="b-text-pl">Dano mu wolną rękę.</p>
+        <hr class="b-divider">
+        <div class="b-section-head">
+          <span class="b-pos-chip" style="background: rgba(76,175,80,0.15); color: var(--c-pos-verb);">CZASOWNIK</span>
+        </div>
+        <p class="b-text-en">Release from captivity.</p>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="label">
+      <h2>SenseRow — proponowany layout</h2>
+      <span class="tag after">Po</span>
+    </div>
+    <div class="phone after">
+      <div class="a-senserow">
+        <div class="a-pos-chip"><span class="dot"></span> przymiotnik</div>
+
+        <div class="a-section">
+          <div class="a-section-head">
+            <span class="a-section-title">ZNACZENIE</span>
+            <div class="a-source-chips">
+              <span class="a-source-chip">DA</span>
+              <span class="a-source-chip">HA</span>
+            </div>
+          </div>
+          <p class="a-text-en">Not constrained.</p>
+          <p class="a-text-pl">Nieograniczony.</p>
+        </div>
+
+        <div class="a-section example">
+          <div class="a-section-head">
+            <span class="a-section-title">ZASTOSOWANIE</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <div class="a-source-chips">
+                <span class="a-source-chip">KA</span>
+                <span class="a-source-chip">HA</span>
+              </div>
+              <button class="a-chat-btn">💬</button>
+            </div>
+          </div>
+          <p class="a-text-en">"He was given free rein."</p>
+          <p class="a-text-pl">Dano mu wolną rękę.</p>
+        </div>
+      </div>
+
+      <div class="a-senserow">
+        <div class="a-pos-chip" style="background: rgba(76,175,80,0.12); color: #2e7d32;"><span class="dot" style="background: var(--c-pos-verb);"></span> czasownik</div>
+        <div class="a-section">
+          <div class="a-section-head">
+            <span class="a-section-title" style="color: #2e7d32;">ZNACZENIE</span>
+            <div class="a-source-chips">
+              <span class="a-source-chip">DA</span>
+              <span class="a-source-chip">HA</span>
+            </div>
+          </div>
+          <p class="a-text-en">Release from captivity.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- === ROW 2: App bar + Settings === -->
+<div class="row">
+  <div>
+    <div class="label">
+      <h2>Top bar + sekcja Settings</h2>
+      <span class="tag before">Teraz</span>
+    </div>
+    <div class="phone before">
+      <div class="b-appbar">
+        <h3>Floating Clipboard</h3>
+        <div class="provider">OpenRouter (free) · ↻ qwen3-next-80b-a3b-instruct (2/7)</div>
+      </div>
+      <h4 style="margin: 16px 0 4px; font-size: 14px;">Model OpenRouter</h4>
+      <div class="b-setting-row" style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div style="flex: 1;">
+          <h4>Tylko darmowe modele</h4>
+          <p>Aplikacja przełącza między darmowymi modelami :free; gdy jeden się wyczerpie próbuje następnego.</p>
+        </div>
+        <span class="switch"></span>
+      </div>
+      <p style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--c-outline); margin-top: 8px;">
+        ↻ Próbuję: qwen/qwen3-next-80b-a3b-instruct:free (2/7)
+      </p>
+    </div>
+  </div>
+
+  <div>
+    <div class="label">
+      <h2>Top bar + Settings — propozycja</h2>
+      <span class="tag after">Po</span>
+    </div>
+    <div class="phone after">
+      <div class="a-appbar">
+        <h3>Floating Clipboard</h3>
+        <div class="provider"><span class="ping"></span>qwen3-next-80b (2/7)</div>
+      </div>
+
+      <h4 style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--d-on-surface-mute); margin: 8px 4px;">
+        OpenRouter
+      </h4>
+      <div class="a-setting-card">
+        <div class="head">
+          <div style="flex: 1;">
+            <h4>Tylko darmowe modele</h4>
+            <p>Aplikacja przełącza między <code>:free</code> kandydatami z fallback chain.</p>
+          </div>
+          <span class="switch"></span>
+        </div>
+        <div class="a-status-pill">
+          <span class="live-dot"></span>
+          ↻ Próbuję qwen3-next-80b (2/7)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- === ROW 3: Paste tab — empty state === -->
+<div class="row">
+  <div>
+    <div class="label">
+      <h2>Paste tab — pierwsze otwarcie (pusty)</h2>
+      <span class="tag before">Teraz</span>
+    </div>
+    <div class="phone before">
+      <h3 class="b-paste-title">Wklej tekst</h3>
+      <div class="b-textfield">
+        <span class="floating-label">Tekst</span>
+        <span class="ph">(puste pole tekstowe)</span>
+      </div>
+      <div class="b-btnrow">
+        <button class="b-btn">Tłumacz</button>
+        <button class="b-btn">Wyjaśnij</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="label">
+      <h2>Paste tab — pierwsze otwarcie, propozycja</h2>
+      <span class="tag after">Po</span>
+    </div>
+    <div class="phone after">
+      <div class="a-paste-hero">
+        <h2>Wklej tekst</h2>
+        <p>Albo zaznacz słowo → przycisk po prawej. Wszystko w jednym tabie.</p>
+      </div>
+      <div class="a-textcard">
+        <span class="ph">Wklej tutaj angielski tekst…<br/><br/>Apka rozbierze go na czynniki: konstrukcje czasowe, idiomy, znaczenia poszczególnych słów.</span>
+      </div>
+      <div class="a-paste-hint">
+        Schowek wczyta się automatycznie · długie naciśnięcie <span class="kbd">⌘V</span> wkleja
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- === ROW 4: Paste tab with result === -->
+<div class="row">
+  <div>
+    <div class="label">
+      <h2>Paste tab — z tłumaczeniem</h2>
+      <span class="tag before">Teraz</span>
+    </div>
+    <div class="phone before">
+      <h3 class="b-paste-title">Wklej tekst</h3>
+      <div class="b-textfield" style="min-height: auto; padding: 14px 12px;">
+        <span class="floating-label">Tekst</span>
+        I have been waiting for the bus since morning.
+      </div>
+      <div class="b-btnrow">
+        <button class="b-btn">Tłumacz</button>
+        <button class="b-btn">Wyjaśnij</button>
+        <button class="b-btn outline">"morning"</button>
+      </div>
+      <div class="b-result-card">
+        <p class="label">TŁUMACZENIE</p>
+        <p class="text">Czekam na autobus od rana.</p>
+        <button class="b-btn outline" style="padding: 4px 12px; font-size: 12px; margin-top: 8px;">Kopiuj</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="label">
+      <h2>Paste tab — z tłumaczeniem, propozycja</h2>
+      <span class="tag after">Po</span>
+    </div>
+    <div class="phone after">
+      <div class="a-paste-hero">
+        <h2>Wklej tekst</h2>
+      </div>
+      <div class="a-textcard">
+        <span class="text-real">I have been waiting for the bus since morning.</span>
+      </div>
+      <div class="a-actionrow">
+        <button class="a-action-primary">Tłumacz</button>
+        <button class="a-action-secondary">Rozbij zdanie</button>
+      </div>
+      <div class="a-actionrow" style="margin-top: 6px;">
+        <button class="a-action-word">"morning" →</button>
+      </div>
+
+      <div class="a-result-card">
+        <div class="head">
+          <span class="label">TŁUMACZENIE</span>
+          <button class="copy-btn">📋 Kopiuj</button>
+        </div>
+        <p class="text">Czekam na autobus od rana.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- === ROW 5: Onboarding (concept) === -->
+<div class="row">
+  <div>
+    <div class="label">
+      <h2>Onboarding — krok 1 z 3</h2>
+      <span class="tag after">Koncepcja (nowe)</span>
+    </div>
+    <div class="o-screen">
+      <div class="step-dots">
+        <div class="step-dot active"></div>
+        <div class="step-dot"></div>
+        <div class="step-dot"></div>
+      </div>
+      <div class="illustration">💬</div>
+      <h2>Tłumacz po kliknięciu</h2>
+      <p>Floating Clipboard rozkłada angielskie zdania na czynniki — czasy gramatyczne, idiomy, znaczenia słów. Wszystko w 5 sekund, z dyktafonowym streamingiem.</p>
+      <button class="o-cta">Dalej →</button>
+      <button class="o-skip">Pomiń</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="label">
+      <h2>Onboarding — krok 2 z 3</h2>
+      <span class="tag after">Koncepcja (nowe)</span>
+    </div>
+    <div class="o-screen">
+      <div class="step-dots">
+        <div class="step-dot"></div>
+        <div class="step-dot active"></div>
+        <div class="step-dot"></div>
+      </div>
+      <div class="illustration">🔑</div>
+      <h2>Skonfiguruj AI</h2>
+      <p>OpenRouter daje darmowy dostęp do DeepSeek, Llama, Gemini i innych. Zarejestruj się na openrouter.ai (Google login, 30 sek) i wklej klucz.</p>
+      <button class="o-cta">Otwórz openrouter.ai/keys</button>
+      <button class="o-skip">Mam już klucz, wklej ręcznie</button>
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <h2>Co się zmienia</h2>
+  <ul>
+    <li><strong>Paleta:</strong> warm-neutral tło (<code>#FAF7F2</code>) + terracotta accent (<code>#B85C2A</code>) zamiast Material-You purple. Spójna brand-tożsamość, mniej "generycznego Androida".</li>
+    <li><strong>Surface hierarchy:</strong> 3 warstwy (background → card surface-1 → nested surface-2/3). Każdy "sens" / "ustawienie" siedzi w karcie z 16dp rogiem, sekcje wewnątrz w jaśniejszych boxach.</li>
+    <li><strong>Typografia:</strong> Inter z Google Fonts (display + body), JetBrains Mono dla skrótów źródeł. Wagi 500/600 zamiast bold-everywhere → cieńszy, nowocześniejszy feel.</li>
+    <li><strong>POS chip:</strong> mały kolorowy dot + lowercase nazwa zamiast SCREAMING UPPERCASE. Mniej krzyczy, bardziej czytelne.</li>
+    <li><strong>Source chips:</strong> pigułki obok siebie (<code>DA</code> <code>HA</code>) zamiast tekstowego <code>EN: DA · PL: HA</code>. Skanowalne wzrokiem w 100ms.</li>
+    <li><strong>Live-state pill:</strong> kropka + monospace tekst w karcie zamiast luźnej linijki pod sekcją. "Aktywne wydarzenie" — od razu widać.</li>
+    <li><strong>Chat icon:</strong> button zamiast surowej ikony w nagłówku — affordance widoczna, kontekst zachowany.</li>
+  </ul>
+  <p style="margin-top: 16px;">
+    <strong>Implementacja w Compose:</strong> 1 plik <code>ui/theme/DesignSystem.kt</code> z paletą + typografią + shapes, ~80 linii. Refaktor <code>SenseRow</code> i <code>OpenRouterModelSection</code> żeby używały wspólnych <code>SectionCard</code> / <code>SourceChip</code> composable'ów, ~150 linii. Reszta ekranów ciągnie się za tym automatycznie bo bierze <code>MaterialTheme.colorScheme</code>.
+  </p>
+</div>
+
+</body>
+</html>

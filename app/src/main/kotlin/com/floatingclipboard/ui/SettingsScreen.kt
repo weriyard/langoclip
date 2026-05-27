@@ -7,12 +7,16 @@ import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -33,6 +37,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -545,67 +551,128 @@ private fun OpenRouterModelSection(
 ) {
     val currentlyUsed by OpenRouterModelHint.current.collectAsStateWithLifecycle()
     val tryingNow by OpenRouterModelHint.trying.collectAsStateWithLifecycle()
-    Text(
-        "Model OpenRouter",
-        style = MaterialTheme.typography.titleMedium,
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Tylko darmowe modele", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                if (onlyFree)
-                    "Aplikacja przełącza między darmowymi modelami :free; gdy jeden się wyczerpie próbuje następnego."
-                else
-                    "Najtańszy płatny model (DeepSeek V4 Flash). Idzie z kredytów OpenRouter — bardzo tanio.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    SettingsSectionHeader("Model OpenRouter")
+    SettingsCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Tylko darmowe modele", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    if (onlyFree)
+                        "Aplikacja przełącza między darmowymi modelami :free; gdy jeden się wyczerpie próbuje następnego."
+                    else
+                        "Najtańszy płatny model (Gemini 2.5 Flash / Lite). Idzie z kredytów OpenRouter — bardzo tanio.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = onlyFree, onCheckedChange = onToggleOnlyFree)
         }
-        Switch(checked = onlyFree, onCheckedChange = onToggleOnlyFree)
-    }
-    val hintText = when {
-        tryingNow != null -> "↻ Próbuję: ${tryingNow!!.model} (${tryingNow!!.attempt}/${tryingNow!!.total})"
-        currentlyUsed != null -> "Aktualnie używany: $currentlyUsed"
-        else -> null
-    }
-    if (hintText != null) {
-        Text(
-            text = hintText,
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.outline,
-        )
+        val statusText = when {
+            tryingNow != null -> "↻ Próbuję ${tryingNow!!.model} (${tryingNow!!.attempt}/${tryingNow!!.total})"
+            currentlyUsed != null -> currentlyUsed
+            else -> null
+        }
+        if (statusText != null) {
+            StatusPill(statusText, accentLive = tryingNow != null)
+        }
     }
 
-    // TTFT timeout — how long to wait for the first chunk before skipping to next candidate.
-    // gpt-oss-120b in particular has been observed to "accept" the request and then sit silent;
-    // a cap lets us move on instead of staring at a spinner.
-    var ttftInput by remember(ttftSec) { mutableStateOf(ttftSec.toString()) }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Timeout pierwszego chunku", style = MaterialTheme.typography.bodyMedium)
-            Text(
-                "Jeśli model nie zacznie odpowiadać w X sekund, przechodzimy do następnego. (5–120 s)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    SettingsCard {
+        var ttftInput by remember(ttftSec) { mutableStateOf(ttftSec.toString()) }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Timeout pierwszego chunku", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Jeśli model nie zacznie odpowiadać w X sekund, przechodzimy do następnego. (5–120 s)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedTextField(
+                value = ttftInput,
+                onValueChange = { v ->
+                    ttftInput = v.filter { it.isDigit() }.take(3)
+                    ttftInput.toIntOrNull()?.let { onTtftChange(it.coerceIn(5, 120)) }
+                },
+                modifier = Modifier.widthIn(min = 80.dp, max = 100.dp),
+                singleLine = true,
+                shape = MaterialTheme.shapes.small,
+                suffix = { Text("s") },
             )
         }
-        OutlinedTextField(
-            value = ttftInput,
-            onValueChange = { v ->
-                ttftInput = v.filter { it.isDigit() }.take(3)
-                ttftInput.toIntOrNull()?.let { onTtftChange(it.coerceIn(5, 120)) }
-            },
-            modifier = Modifier.widthIn(min = 80.dp, max = 100.dp),
-            singleLine = true,
-            suffix = { Text("s") },
+    }
+}
+
+/**
+ * Section card — soft surface container that groups related Settings rows. Replaces the
+ * previous loose Text+Switch stacks; the grouping by colour + corner makes it obvious
+ * which controls belong together.
+ */
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content,
+        )
+    }
+}
+
+/** Small uppercase section label, all-caps + tracked letters, sits above SettingsCard groups. */
+@Composable
+private fun SettingsSectionHeader(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+    )
+}
+
+/**
+ * Compact monospaced status pill — sits inside the SettingsCard to show live routing state.
+ * When [accentLive] is true a small primary-coloured dot leads to signal that work is in
+ * flight; otherwise a neutral dot indicates the current snapshot.
+ */
+@Composable
+private fun StatusPill(text: String, accentLive: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.small,
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(
+                    color = if (accentLive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                ),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

@@ -216,124 +216,179 @@ private fun SensesList(
     senses: List<WordSense>,
     onOpenChat: (meaningEn: String, meaningPl: String) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        senses.forEachIndexed { i, sense ->
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        senses.forEach { sense ->
             SenseRow(
                 sense = sense,
                 onOpenChat = { onOpenChat(sense.meaning, sense.meaningTranslation) },
             )
-            if (i < senses.size - 1) {
-                HorizontalDivider(
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                )
-            }
         }
     }
 }
 
 @Composable
 private fun SenseRow(sense: WordSense, onOpenChat: () -> Unit) {
-    val color = colorForPartOfSpeech(sense.partOfSpeech)
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // POS chip — single anchor for the whole sense.
-        Surface(
-            color = color.copy(alpha = 0.15f),
-            shape = MaterialTheme.shapes.extraSmall,
+    val posColor = colorForPartOfSpeech(sense.partOfSpeech)
+    androidx.compose.material3.Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            0.5.dp, MaterialTheme.colorScheme.outlineVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = sense.partOfSpeech.label.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = color,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.SansSerif,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            )
-        }
-        // ── Meaning block ────────────────────────────────────────────────────────
-        SectionBlock(
-            title = "ZNACZENIE",
-            sourceLabel = meaningSourceLabel(sense),
-            primaryEn = sense.meaning,
-            primaryPl = sense.meaningTranslation,
-            primaryItalic = false,
-        )
-        // ── Example block — skipped when nothing to show ─────────────────────────
-        if (sense.example.isNotBlank()) {
+            PosChip(label = sense.partOfSpeech.label, color = posColor)
+
             SectionBlock(
-                title = "ZASTOSOWANIE",
-                sourceLabel = exampleSourceLabel(sense),
-                primaryEn = "“${sense.example}”",
-                primaryPl = sense.exampleTranslation,
-                primaryItalic = true,
-                trailingAction = {
-                    IconButton(
-                        onClick = onOpenChat,
-                        modifier = Modifier.size(28.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Chat,
-                            contentDescription = "Otwórz chat o tym słowie",
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                },
+                title = "ZNACZENIE",
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                sourceChips = meaningSourceChips(sense),
+                primaryEn = sense.meaning,
+                primaryPl = sense.meaningTranslation,
+                primaryItalic = false,
             )
+
+            if (sense.example.isNotBlank()) {
+                SectionBlock(
+                    title = "ZASTOSOWANIE",
+                    // Subtle accent tint so the example pair stands out from the meaning pair.
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    sourceChips = exampleSourceChips(sense),
+                    primaryEn = "“${sense.example}”",
+                    primaryPl = sense.exampleTranslation,
+                    primaryItalic = true,
+                    trailingAction = {
+                        IconButton(
+                            onClick = onOpenChat,
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = "Otwórz chat o tym słowie",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    },
+                )
+            }
         }
     }
 }
 
 /**
- * Section inside a single sense (meaning OR example). Header on the left, source attribution on
- * the right; EN line below, PL translation under it (skipped when empty so a half-done sense
- * doesn't show a stray "→ ").
+ * POS chip with a coloured dot + lowercase label. Replaces the SCREAMING UPPERCASE pill — feels
+ * less shouty, the dot still does the colour-coding heavy lifting.
+ */
+@Composable
+private fun PosChip(label: String, color: androidx.compose.ui.graphics.Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .background(
+                color = color.copy(alpha = 0.12f),
+                shape = MaterialTheme.shapes.small,
+            )
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(color, androidx.compose.foundation.shape.CircleShape),
+        )
+        Text(
+            text = label.lowercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/**
+ * Single source code pill. Renders the 2-letter chip used in section headers (DA/KA/HA/HG/—)
+ * as a monospace pill on a neutral background — scannable, doesn't fight the section title.
+ */
+@Composable
+private fun SourceChip(code: String) {
+    Text(
+        text = code,
+        style = MaterialTheme.typography.labelSmall,
+        fontFamily = FontFamily.Monospace,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(99.dp),
+            )
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    )
+}
+
+/**
+ * Section inside a single sense (meaning OR example). Renders inside a tinted Surface so the
+ * pair (header + EN + PL) reads as one visual unit and is clearly nested inside the parent
+ * sense card.
  */
 @Composable
 private fun SectionBlock(
     title: String,
-    sourceLabel: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    sourceChips: List<String>,
     primaryEn: String,
     primaryPl: String,
     primaryItalic: Boolean,
     trailingAction: (@Composable () -> Unit)? = null,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.SansSerif,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = sourceLabel,
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.outline,
-            )
-            if (trailingAction != null) {
-                trailingAction()
+    Surface(
+        color = containerColor,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.SansSerif,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    sourceChips.forEach { SourceChip(it) }
+                }
+                if (trailingAction != null) {
+                    Spacer(Modifier.width(6.dp))
+                    trailingAction()
+                }
             }
-        }
-        Text(
-            text = primaryEn,
-            style = MaterialTheme.typography.bodyMedium,
-            fontStyle = if (primaryItalic) FontStyle.Italic else FontStyle.Normal,
-            fontFamily = FontFamily.SansSerif,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 4.dp),
-        )
-        if (primaryPl.isNotBlank()) {
             Text(
-                text = "→ $primaryPl",
+                text = primaryEn,
                 style = MaterialTheme.typography.bodyMedium,
+                fontStyle = if (primaryItalic) FontStyle.Italic else FontStyle.Normal,
                 fontFamily = FontFamily.SansSerif,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp),
+                color = MaterialTheme.colorScheme.onSurface,
             )
+            if (primaryPl.isNotBlank()) {
+                Text(
+                    text = primaryPl,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.SansSerif,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -341,12 +396,10 @@ private fun SectionBlock(
 // Source codes used in SenseRow chips — see SettingsScreen for the legend rendered to the user.
 // DA = dictionaryapi.dev, KA = kaikki (local Wiktionary DB),
 // HA = Haiku translation, HG = Haiku generated, — = pending / unavailable.
-private fun meaningSourceLabel(sense: WordSense): String {
-    val pl = if (sense.meaningTranslation.isNotBlank()) "HA" else "—"
-    return "EN: DA · PL: $pl"
-}
+private fun meaningSourceChips(sense: WordSense): List<String> =
+    listOf("DA", if (sense.meaningTranslation.isNotBlank()) "HA" else "—")
 
-private fun exampleSourceLabel(sense: WordSense): String {
+private fun exampleSourceChips(sense: WordSense): List<String> {
     val en = when (sense.exampleSource) {
         com.floatingclipboard.actions.ExampleSource.API -> "DA"
         com.floatingclipboard.actions.ExampleSource.KAIKKI -> "KA"
@@ -354,7 +407,7 @@ private fun exampleSourceLabel(sense: WordSense): String {
         com.floatingclipboard.actions.ExampleSource.NONE -> "—"
     }
     val pl = if (sense.exampleTranslation.isNotBlank()) "HA" else "—"
-    return "EN: $en · PL: $pl"
+    return listOf(en, pl)
 }
 
 private fun highlightedEnglish(
