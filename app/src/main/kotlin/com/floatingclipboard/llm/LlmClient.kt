@@ -10,12 +10,20 @@ interface LlmClient {
         jsonSchema: JsonElement? = null,
     ): Result<String>
 
+    /**
+     * Streams content tokens. [onUsage] is invoked once at the end of the stream with the
+     * provider's reported token counts when available — null callback or providers that don't
+     * surface usage are silently no-op.
+     */
     fun stream(
         systemPrompt: String,
         userPrompt: String,
         jsonSchema: JsonElement? = null,
+        onUsage: ((TokenUsage) -> Unit)? = null,
     ): Flow<String>
 }
+
+data class TokenUsage(val inputTokens: Int, val outputTokens: Int)
 
 sealed class LlmError(message: String, cause: Throwable? = null) : Exception(message, cause) {
     data object MissingApiKey : LlmError("Brak klucza API — skonfiguruj w ustawieniach")

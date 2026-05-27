@@ -88,7 +88,12 @@ class ActionRunner(
         val startedAt = System.currentTimeMillis()
 
         try {
-            client.stream(systemPrompt, userText, schema).collect { delta ->
+            client.stream(
+                systemPrompt = systemPrompt,
+                userPrompt = userText,
+                jsonSchema = schema,
+                onUsage = { u -> logs.d(TAG, "TOKENS in=${u.inputTokens} out=${u.outputTokens}") },
+            ).collect { delta ->
                 deltaCount++
                 if (deltaCount == 1) {
                     logs.d(TAG, "TTFT  ${System.currentTimeMillis() - startedAt}ms (first delta arrived)")
@@ -188,7 +193,12 @@ class ActionRunner(
         val startedAt = System.currentTimeMillis()
 
         try {
-            client.stream(systemPrompt, userPrompt, EXAMPLES_SCHEMA).collect { delta ->
+            client.stream(
+                systemPrompt = systemPrompt,
+                userPrompt = userPrompt,
+                jsonSchema = EXAMPLES_SCHEMA,
+                onUsage = { u -> logs.d(TAG, "TOKENS examples in=${u.inputTokens} out=${u.outputTokens}") },
+            ).collect { delta ->
                 deltaCount++
                 if (deltaCount == 1) {
                     logs.d(TAG, "TTFT  examples ${System.currentTimeMillis() - startedAt}ms")
@@ -318,7 +328,12 @@ class ActionRunner(
         var lastBaseForm: String? = null
 
         try {
-            client.stream(systemPrompt, phrase, WORD_SENSES_SCHEMA).collect { delta ->
+            client.stream(
+                systemPrompt = systemPrompt,
+                userPrompt = phrase,
+                jsonSchema = WORD_SENSES_SCHEMA,
+                onUsage = { u -> logs.d(TAG, "TOKENS senses in=${u.inputTokens} out=${u.outputTokens}") },
+            ).collect { delta ->
                 builder.append(delta)
                 val accumulator = builder.toString()
                 val partial = parser.extract(accumulator).map { it.toDomain() }
@@ -578,9 +593,10 @@ Respond ONLY with this JSON object, nothing else:
             val client = createLlmClient(settings.copy(provider = Provider.ANTHROPIC), HAIKU_MODEL)
             val builder = StringBuilder()
             client.stream(
-                "You are a translation API. Respond with valid JSON only — no prose, no markdown fences.",
-                userPrompt,
-                null,
+                systemPrompt = "You are a translation API. Respond with valid JSON only — no prose, no markdown fences.",
+                userPrompt = userPrompt,
+                jsonSchema = null,
+                onUsage = { u -> logs.d(TAG_SENSES, "[${idx + 1}/$total] TOKENS in=${u.inputTokens} out=${u.outputTokens}") },
             ).collect { delta -> builder.append(delta) }
             builder.toString().trim()
         }.onFailure { logs.w(TAG_SENSES, "[${idx + 1}/$total] Haiku FAILED: ${it.message}") }

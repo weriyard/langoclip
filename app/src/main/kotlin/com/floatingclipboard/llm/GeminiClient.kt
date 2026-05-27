@@ -62,7 +62,10 @@ class GeminiClient(
         systemPrompt: String,
         userPrompt: String,
         jsonSchema: JsonElement?,
+        onUsage: ((TokenUsage) -> Unit)?,
     ): Flow<String> = flow {
+        // Gemini reports usageMetadata.{prompt,candidates}TokenCount in the final SSE chunk; not
+        // wired up yet — leaving onUsage as a no-op for this provider keeps the contract honest.
         if (apiKey.isBlank()) throw LlmError.MissingApiKey
         val parser = Json { ignoreUnknownKeys = true }
 

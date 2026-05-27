@@ -70,13 +70,17 @@ class OpenAiClient(
         systemPrompt: String,
         userPrompt: String,
         jsonSchema: JsonElement?,
+        onUsage: ((TokenUsage) -> Unit)?,
     ): Flow<String> = flow {
         if (apiKey.isBlank()) throw LlmError.MissingApiKey
         val parser = Json { ignoreUnknownKeys = true }
+        var lastUsage: OpenAiUsage? = null
 
         llmHttpClient.preparePost(baseUrl) {
             header(HttpHeaders.Authorization, "Bearer $apiKey")
             contentType(ContentType.Application.Json)
+            // include_usage=true asks OpenAI-compat providers (including OpenRouter) to send a
+            // final SSE chunk with prompt_tokens / completion_tokens in `usage`.
             setBody(buildRequest(systemPrompt, userPrompt, jsonSchema, stream = true))
         }.execute { response ->
             if (!response.status.isSuccess()) {
@@ -102,8 +106,12 @@ class OpenAiClient(
                     ?.delta?.content
                     ?.takeIf { it.isNotEmpty() }
                     ?.let { emit(it) }
+                // Usage typically arrives in the terminal chunk (after the last content delta).
+                // Keep updating — last one wins, and providers can send it more than once.
+                chunk?.usage?.let { lastUsage = it }
             }
         }
+        lastUsage?.let { onUsage?.invoke(TokenUsage(it.promptTokens, it.completionTokens)) }
     }
         .catch { e ->
             throw when (e) {
@@ -128,6 +136,8 @@ class OpenAiClient(
             OpenAiMessage(role = "user", content = userPrompt),
         ),
         stream = stream,
+        // Required to make OpenRouter / OpenAI emit a final SSE chunk containing `usage`.
+        streamOptions = if (stream) OpenAiStreamOptions(includeUsage = true) else null,
         responseFormat = jsonSchema?.let {
             OpenAiResponseFormat(
                 type = "json_schema",
@@ -159,8 +169,26 @@ private data class OpenAiRequest(
     val model: String,
     val messages: List<OpenAiMessage>,
     val stream: Boolean = false,
+    @SerialName("stream_options")
+    val streamOptions: OpenAiStreamOptions? = null,
     @SerialName("response_format")
     val responseFormat: OpenAiResponseFormat? = null,
+)
+
+@Serializable
+private data class OpenAiStreamOptions(
+    @SerialName("include_usage")
+    val includeUsage: Boolean,
+)
+
+@Serializable
+private data class OpenAiUsage(
+    @SerialName("prompt_tokens")
+    val promptTokens: Int = 0,
+    @SerialName("completion_tokens")
+    val completionTokens: Int = 0,
+    @SerialName("total_tokens")
+    val totalTokens: Int = 0,
 )
 
 @Serializable
@@ -198,6 +226,7 @@ private data class OpenAiChoice(
 @Serializable
 private data class OpenAiStreamChunk(
     val choices: List<OpenAiStreamChoice> = emptyList(),
+    val usage: OpenAiUsage? = null,
 )
 
 @Serializable

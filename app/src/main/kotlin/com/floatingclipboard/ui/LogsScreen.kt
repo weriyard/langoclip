@@ -2,6 +2,7 @@ package com.floatingclipboard.ui
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -161,21 +163,76 @@ fun LogsScreen(
 
 @Composable
 private fun LogRow(entry: LogEntry) {
-    val color = when (entry.level) {
-        LogLevel.D -> MaterialTheme.colorScheme.onSurfaceVariant
-        LogLevel.I -> MaterialTheme.colorScheme.onSurface
+    // Errors and warnings dominate; everything else picks a colour from its tag so the eye can
+    // group lines of the same conversation (LLM / Senses / OpenRouter / Chat …).
+    val tagColor = when {
+        entry.level == LogLevel.E -> MaterialTheme.colorScheme.error
+        entry.level == LogLevel.W -> Color(0xFFE69500)
+        entry.tag.equals("LLM", ignoreCase = true) -> MaterialTheme.colorScheme.primary
+        entry.tag.equals("Senses", ignoreCase = true) -> Color(0xFF2E7D32)         // green 800
+        entry.tag.equals("OpenRouter", ignoreCase = true) -> Color(0xFF7B4F9E)     // purple 700
+        entry.tag.equals("Chat", ignoreCase = true) -> Color(0xFF1565C0)           // blue 800
+        entry.tag.equals("TabsViewModel", ignoreCase = true) -> Color(0xFF5D4037)  // brown 700
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val messageColor = when (entry.level) {
         LogLevel.W -> Color(0xFFE69500)
         LogLevel.E -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
     }
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = entry.formatted(),
-            fontFamily = FontFamily.Monospace,
-            style = MaterialTheme.typography.bodySmall,
-            color = color,
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        // Coloured left accent bar — quick visual grouping by tag without reading the label.
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .padding(top = 3.dp)
+                .width(3.dp)
+                .androidx_height_intrinsic_min()
+                .background(tagColor, MaterialTheme.shapes.extraSmall),
         )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
+                        .format(java.util.Date(entry.timestampMs)),
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+                Text(
+                    text = entry.level.name,
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = tagColor,
+                )
+                Text(
+                    text = entry.tag,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = tagColor,
+                    fontFamily = FontFamily.SansSerif,
+                )
+            }
+            Text(
+                text = entry.message,
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.bodySmall,
+                color = messageColor,
+            )
+        }
     }
 }
+
+// Fixed minimum so the accent bar reads as a "row separator" even for single-line messages.
+private fun Modifier.androidx_height_intrinsic_min(): Modifier =
+    this.heightIn(min = 20.dp)
 
 private fun shareLogs(context: Context, snapshot: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {

@@ -37,6 +37,8 @@ class OpenRouterClient(
         userPrompt: String,
         jsonSchema: JsonElement?,
     ): Result<String> {
+        // complete() doesn't surface usage upward — it's the legacy single-shot path; all our
+        // tasks go through stream() which does. Leaving as-is.
         candidates.forEachIndexed { idx, model ->
             logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model")
             OpenRouterModelHint.startTrying(model, idx + 1, candidates.size)
@@ -63,6 +65,7 @@ class OpenRouterClient(
         systemPrompt: String,
         userPrompt: String,
         jsonSchema: JsonElement?,
+        onUsage: ((TokenUsage) -> Unit)?,
     ): Flow<String> = channelFlow {
         candidates.forEachIndexed { idx, model ->
             logs?.d(TAG, "[${idx + 1}/${candidates.size}] trying $model (ttft cap ${ttftTimeoutMs}ms)")
@@ -75,7 +78,12 @@ class OpenRouterClient(
             val producer = launch {
                 try {
                     val client = OpenAiClient(apiKey, model, OpenAiClient.OPENROUTER_BASE_URL)
-                    client.stream(systemPrompt, userPrompt, jsonSchema).collect { delta ->
+                    client.stream(
+                        systemPrompt = systemPrompt,
+                        userPrompt = userPrompt,
+                        jsonSchema = jsonSchema,
+                        onUsage = onUsage,
+                    ).collect { delta ->
                         pipe.send(ProducerEvent.Chunk(delta))
                     }
                     pipe.send(ProducerEvent.Done)

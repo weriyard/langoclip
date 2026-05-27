@@ -77,10 +77,12 @@ class AnthropicClient(
         systemPrompt: String,
         userPrompt: String,
         jsonSchema: JsonElement?,
+        onUsage: ((TokenUsage) -> Unit)?,
     ): Flow<String> = streamMessages(
         systemPrompt,
         listOf(AnthropicMessage(role = "user", content = userPrompt)),
         jsonSchema,
+        onUsage,
     )
 
     /**
@@ -89,20 +91,31 @@ class AnthropicClient(
      * like single-shot [stream], so callers can append into a StringBuilder and rebuild the
      * assistant turn progressively.
      */
-    fun streamChat(systemPrompt: String, turns: List<ChatTurn>): Flow<String> =
+    fun streamChat(
+        systemPrompt: String,
+        turns: List<ChatTurn>,
+        onUsage: ((TokenUsage) -> Unit)? = null,
+    ): Flow<String> =
         streamMessages(
             systemPrompt,
             turns.map { AnthropicMessage(role = it.role, content = it.content) },
             jsonSchema = null,
+            onUsage = onUsage,
         )
 
     private fun streamMessages(
         systemPrompt: String,
         messages: List<AnthropicMessage>,
         jsonSchema: JsonElement?,
+        onUsage: ((TokenUsage) -> Unit)?,
     ): Flow<String> = flow {
         if (apiKey.isBlank()) throw LlmError.MissingApiKey
         val parser = Json { ignoreUnknownKeys = true }
+        // Anthropic splits usage across two events: message_start carries input_tokens (+ an
+        // initial output_tokens estimate, usually 1) and message_delta updates output_tokens at
+        // the very end with the final count.
+        var inputTokens = 0
+        var outputTokens = 0
 
         llmHttpClient.preparePost(BASE_URL) {
             header(HEADER_API_KEY, apiKey)
@@ -129,11 +142,22 @@ class AnthropicClient(
                 } catch (e: SerializationException) {
                     null
                 }
-                // Structured outputs also stream via text_delta — content[0].text grows token-by-token.
-                if (event?.type == "content_block_delta") {
-                    event.delta?.text?.takeIf { it.isNotEmpty() }?.let { emit(it) }
+                when (event?.type) {
+                    "content_block_delta" ->
+                        event.delta?.text?.takeIf { it.isNotEmpty() }?.let { emit(it) }
+                    "message_start" -> event.message?.usage?.let { u ->
+                        inputTokens = u.inputTokens
+                        outputTokens = u.outputTokens
+                    }
+                    "message_delta" -> event.usage?.let { u ->
+                        // Last message_delta has the final output count.
+                        outputTokens = u.outputTokens
+                    }
                 }
             }
+        }
+        if (inputTokens > 0 || outputTokens > 0) {
+            onUsage?.invoke(TokenUsage(inputTokens, outputTokens))
         }
     }
         .catch { e -> throw mapError(e) }
@@ -229,10 +253,25 @@ private data class AnthropicContentBlock(
 private data class AnthropicStreamEvent(
     val type: String,
     val delta: AnthropicStreamDelta? = null,
+    val message: AnthropicStreamMessage? = null,
+    val usage: AnthropicStreamUsage? = null,
 )
 
 @Serializable
 private data class AnthropicStreamDelta(
     val type: String? = null,
     val text: String? = null,
+)
+
+@Serializable
+private data class AnthropicStreamMessage(
+    val usage: AnthropicStreamUsage? = null,
+)
+
+@Serializable
+private data class AnthropicStreamUsage(
+    @SerialName("input_tokens")
+    val inputTokens: Int = 0,
+    @SerialName("output_tokens")
+    val outputTokens: Int = 0,
 )

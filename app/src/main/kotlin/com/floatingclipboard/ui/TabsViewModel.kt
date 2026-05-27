@@ -273,7 +273,13 @@ class TabsViewModel(
             val builder = StringBuilder()
             val result = runCatching {
                 val client = AnthropicClient(settings.anthropicApiKey, CHAT_MODEL)
-                client.streamChat(systemPrompt, turns).collect { delta ->
+                client.streamChat(
+                    systemPrompt = systemPrompt,
+                    turns = turns,
+                    onUsage = { u ->
+                        logStore?.d("Chat", "TOKENS in=${u.inputTokens} out=${u.outputTokens}")
+                    },
+                ).collect { delta ->
                     builder.append(delta)
                     tabs.updateChat(tabId) { it.copy(streamingAssistant = builder.toString()) }
                 }
