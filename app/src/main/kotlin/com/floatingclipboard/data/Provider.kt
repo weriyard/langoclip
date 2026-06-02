@@ -9,9 +9,12 @@ enum class Provider(
 ) {
     GEMINI(
         displayName = "Gemini",
+        // CAPABLE tier (Explain / Examples) — Flash handles the long structured JSON.
         defaultModel = "gemini-2.5-flash",
-        fastModel = "gemini-2.5-flash",
-        models = listOf("gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"),
+        // FAST tier (Translate / Word senses / Chat) — Lite is ~2× cheaper & faster, JSON is
+        // shallow here. Mirrors the OpenRouter paid split (see OPENROUTER_PAID_*_CANDIDATES).
+        fastModel = "gemini-2.5-flash-lite",
+        models = listOf("gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"),
         apiKeyConsoleUrl = "https://aistudio.google.com/apikey",
     ),
     OPENAI(

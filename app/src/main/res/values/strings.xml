@@ -5,6 +5,7 @@
 
     <!-- Top app bar / common -->
     <string name="action_settings">Settings</string>
+    <string name="action_open_tutor_chat">Open tutor chat</string>
     <string name="action_back">Back</string>
     <string name="action_close">Close</string>
     <string name="action_clear">Clear</string>

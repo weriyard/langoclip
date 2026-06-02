@@ -4,6 +4,7 @@
 
     <!-- Top app bar / common -->
     <string name="action_settings">Ustawienia</string>
+    <string name="action_open_tutor_chat">Otwórz czat z korepetytorem</string>
     <string name="action_back">Wstecz</string>
     <string name="action_close">Zamknij</string>
     <string name="action_clear">Wyczyść</string>

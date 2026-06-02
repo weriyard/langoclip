@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -241,6 +242,12 @@ private fun TabbedShell(
                         }
                     },
                     actions = {
+                        IconButton(onClick = { viewModel.openTutorChat() }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = stringResource(R.string.action_open_tutor_chat),
+                            )
+                        }
                         IconButton(onClick = { showTabsList = true }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.List,

@@ -91,10 +91,10 @@ class AnthropicClient(
      * like single-shot [stream], so callers can append into a StringBuilder and rebuild the
      * assistant turn progressively.
      */
-    fun streamChat(
+    override fun streamChat(
         systemPrompt: String,
         turns: List<ChatTurn>,
-        onUsage: ((TokenUsage) -> Unit)? = null,
+        onUsage: ((TokenUsage) -> Unit)?,
     ): Flow<String> =
         streamMessages(
             systemPrompt,
@@ -203,9 +203,6 @@ class AnthropicClient(
         private const val MAX_TOKENS = 8192
     }
 }
-
-/** Single turn in a multi-turn chat — role is "user" or "assistant" per Anthropic's API. */
-data class ChatTurn(val role: String, val content: String)
 
 @Serializable
 private data class AnthropicRequest(

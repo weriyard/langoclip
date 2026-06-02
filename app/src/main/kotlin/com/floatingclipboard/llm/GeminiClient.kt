@@ -107,14 +107,63 @@ class GeminiClient(
         .catch { e -> throw mapError(e) }
         .flowOn(Dispatchers.IO)
 
+    /**
+     * Multi-turn streaming. Gemini's `contents` array is natively multi-turn — each [ChatTurn] maps
+     * to one entry, with the "assistant" role renamed to Gemini's "model". Emits text deltas exactly
+     * like [stream], so chat callers accumulate into a StringBuilder.
+     */
+    override fun streamChat(
+        systemPrompt: String,
+        turns: List<ChatTurn>,
+        onUsage: ((TokenUsage) -> Unit)?,
+    ): Flow<String> = flow {
+        if (apiKey.isBlank()) throw LlmError.MissingApiKey
+        val parser = Json { ignoreUnknownKeys = true }
+
+        llmHttpClient.preparePost("$BASE_URL/models/$model:streamGenerateContent") {
+            url {
+                parameters.append("key", apiKey)
+                parameters.append("alt", "sse")
+            }
+            contentType(ContentType.Application.Json)
+            setBody(buildChatRequest(systemPrompt, turns))
+        }.execute { response ->
+            if (!response.status.isSuccess()) {
+                val body = runCatching { response.bodyAsText() }.getOrDefault("")
+                throw when (response.status.value) {
+                    401, 403 -> LlmError.Unauthorized
+                    429 -> LlmError.RateLimited
+                    else -> LlmError.Server(response.status.value, body.take(500))
+                }
+            }
+            val channel = response.bodyAsChannel()
+            while (!channel.isClosedForRead) {
+                val line = channel.readUTF8Line() ?: break
+                if (!line.startsWith("data: ")) continue
+                val payload = line.removePrefix("data: ").trim()
+                if (payload.isEmpty()) continue
+                val chunk: GeminiResponse? = try {
+                    parser.decodeFromString<GeminiResponse>(payload)
+                } catch (e: SerializationException) {
+                    null
+                }
+                chunk?.candidates?.firstOrNull()
+                    ?.content?.parts?.firstOrNull()
+                    ?.text
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { emit(it) }
+            }
+        }
+    }
+        .catch { e -> throw mapError(e) }
+        .flowOn(Dispatchers.IO)
+
     private fun buildRequest(
         systemPrompt: String,
         userPrompt: String,
         jsonSchema: JsonElement?,
     ) = GeminiRequest(
-        systemInstruction = systemPrompt
-            .takeIf { it.isNotBlank() }
-            ?.let { GeminiContent(parts = listOf(GeminiPart(text = it))) },
+        systemInstruction = systemPrompt.toSystemInstruction(),
         contents = listOf(
             GeminiContent(role = "user", parts = listOf(GeminiPart(text = userPrompt)))
         ),
@@ -125,6 +174,23 @@ class GeminiClient(
             )
         },
     )
+
+    private fun buildChatRequest(
+        systemPrompt: String,
+        turns: List<ChatTurn>,
+    ) = GeminiRequest(
+        systemInstruction = systemPrompt.toSystemInstruction(),
+        contents = turns.map { turn ->
+            GeminiContent(
+                // Gemini uses "model" where the rest of the app says "assistant".
+                role = if (turn.role == "assistant") "model" else "user",
+                parts = listOf(GeminiPart(text = turn.content)),
+            )
+        },
+    )
+
+    private fun String.toSystemInstruction(): GeminiContent? =
+        takeIf { it.isNotBlank() }?.let { GeminiContent(parts = listOf(GeminiPart(text = it))) }
 
     private fun mapError(e: Throwable): Throwable = when (e) {
         is LlmError -> e

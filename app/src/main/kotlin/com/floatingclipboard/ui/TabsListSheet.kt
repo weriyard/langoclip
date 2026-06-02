@@ -143,7 +143,7 @@ private fun TabsListItem(
                     stringResource(R.string.tab_subtitle_examples_variant, tab.variant + 1)
                 else stringResource(R.string.tab_subtitle_examples)
                 is Tab.WordTranslation -> "Tłumaczenie słowa"
-                is Tab.Chat -> "Chat o słowie"
+                is Tab.Chat -> if (tab.isTutor) "Korepetytor" else "Chat o słowie"
             }
             Text(
                 text = subtitle,

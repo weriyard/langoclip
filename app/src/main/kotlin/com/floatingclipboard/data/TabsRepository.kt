@@ -80,10 +80,15 @@ sealed interface Tab {
     }
 
     /**
-     * Vocabulary tutor chat anchored to a specific sense of a word. [messages] is the full
-     * exchange; [streamingAssistant] is non-null while a response is being streamed in (rendered
-     * as a final-position assistant bubble that grows). [input] is held here so the field
-     * survives tab switches and process restarts the same way Paste.text does.
+     * Tutor chat. Two flavours, distinguished by [isTutor]:
+     *  - word mode (`isTutor == false`) — anchored to a specific sense of a word (header shows the
+     *    word + EN/PL meaning, prompt is vocabulary-focused).
+     *  - general mode (`isTutor == true`) — open conversation about English: grading sentences,
+     *    idiomatic alternatives, nuances. [word]/[meaning*] are blank.
+     *
+     * [messages] is the full exchange; [streamingAssistant] is non-null while a response is being
+     * streamed in (rendered as a final-position assistant bubble that grows). [input] is held here
+     * so the field survives tab switches and process restarts the same way Paste.text does.
      */
     data class Chat(
         override val id: TabId,
@@ -94,8 +99,9 @@ sealed interface Tab {
         val streamingAssistant: String? = null,
         val input: String = "",
         val error: String? = null,
+        val isTutor: Boolean = false,
     ) : Tab {
-        override val label: String = word.take(LABEL_MAX)
+        override val label: String = if (isTutor) "Korepetytor" else word.take(LABEL_MAX)
         override val isCloseable: Boolean = true
     }
 
@@ -186,6 +192,23 @@ class TabsRepository private constructor() {
                 meaningEn = meaningEn,
                 meaningPl = meaningPl,
                 messages = initialMessages,
+            )
+        }
+        _selectedId.value = id
+        return id
+    }
+
+    /** Opens a general English-tutor chat (not anchored to any word). Auto-switches to it. */
+    fun openTutorChat(initialMessages: List<ChatMessage>): TabId {
+        val id = TabId(idGen.getAndIncrement())
+        _tabs.update {
+            it + Tab.Chat(
+                id = id,
+                word = "",
+                meaningEn = "",
+                meaningPl = "",
+                messages = initialMessages,
+                isTutor = true,
             )
         }
         _selectedId.value = id

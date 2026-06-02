@@ -15,9 +15,11 @@ import com.floatingclipboard.data.LlmCache
 import com.floatingclipboard.data.LogStore
 import com.floatingclipboard.data.Provider
 import com.floatingclipboard.data.SettingsRepository
-import com.floatingclipboard.llm.AnthropicClient
 import com.floatingclipboard.llm.ChatTurn
+import com.floatingclipboard.llm.LlmTask
+import com.floatingclipboard.llm.ModelRouter
 import com.floatingclipboard.llm.OpenRouterModelHint
+import com.floatingclipboard.llm.createLlmClient
 import com.floatingclipboard.data.Tab
 import com.floatingclipboard.data.Tab.Companion.PASTE_ID
 import com.floatingclipboard.data.TabId
@@ -236,6 +238,23 @@ class TabsViewModel(
         )
     }
 
+    /**
+     * Opens a general English-tutor chat — a free-form conversation window for grading sentences,
+     * getting idiomatic alternatives and nuance explanations. Seeds a Polish greeting so the user
+     * sees what they can do, then waits for input.
+     */
+    fun openTutorChat() {
+        val greeting = ChatMessage(
+            role = ChatMessage.Role.ASSISTANT,
+            content = buildString {
+                append("Cześć! Jestem Twoim korepetytorem angielskiego. 🇬🇧\n\n")
+                append("Napisz zdanie, a sprawdzę je i zaproponuję bardziej naturalne wersje. ")
+                append("Możesz też zapytać o różnicę między słowami, idiomy, rejestr (casual vs business) albo o cokolwiek z angielskiego.")
+            },
+        )
+        tabs.openTutorChat(initialMessages = listOf(greeting))
+    }
+
     fun setChatInput(tabId: TabId, text: String) {
         tabs.updateChat(tabId) { it.copy(input = text) }
     }
@@ -262,7 +281,11 @@ class TabsViewModel(
 
         val job = viewModelScope.launch {
             val settings = runner.settings.first()
-            val systemPrompt = buildChatSystemPrompt(chat.word, chat.meaningEn, chat.meaningPl)
+            val systemPrompt = if (chat.isTutor) {
+                TUTOR_SYSTEM_PROMPT
+            } else {
+                buildChatSystemPrompt(chat.word, chat.meaningEn, chat.meaningPl)
+            }
             val turns = (chat.messages + userMsg).map { m ->
                 ChatTurn(
                     role = if (m.role == ChatMessage.Role.USER) "user" else "assistant",
@@ -272,7 +295,10 @@ class TabsViewModel(
 
             val builder = StringBuilder()
             val result = runCatching {
-                val client = AnthropicClient(settings.anthropicApiKey, CHAT_MODEL)
+                // Chat follows the configured provider on the FAST tier (Gemini Flash, OpenRouter
+                // Flash-Lite, …) — same routing as Translate, not a hardcoded model.
+                val model = ModelRouter.modelFor(LlmTask.CHAT, settings)
+                val client = createLlmClient(settings, model, logStore, LlmTask.CHAT.tier)
                 client.streamChat(
                     systemPrompt = systemPrompt,
                     turns = turns,
@@ -312,7 +338,33 @@ Help the user understand this word in depth. They may ask for more example sente
         """.trimIndent()
 
     companion object {
-        private const val CHAT_MODEL = "claude-haiku-4-5-20251001"
+        /**
+         * System prompt for the general tutor chat. Conversational adaptation of the translation
+         * guidelines: idiomatic over dictionary, native-speaker test, casual vs business register,
+         * nuance explanations, completing clipped endings.
+         */
+        private val TUTOR_SYSTEM_PROMPT = """
+You are an elite English tutor, translator and native speaker, helping a Polish-speaking learner.
+Your job: grade the user's sentences and offer better, natural alternatives.
+
+Reply in Polish (the learner's language), but always show English examples verbatim with a short
+Polish gloss. Keep replies concise and concrete — bullet points and short paragraphs, not essays.
+
+Follow these rules without exception:
+1. IDIOMATIC OVER DICTIONARY. Never translate word-for-word from Polish. If the user picks a word
+   that is dictionary-correct but sounds unnatural or stiff in context (e.g. "compound" instead of
+   "accumulate" for dust), flag it and explain the difference.
+2. EVERYDAY, NATURAL LANGUAGE. Give examples Americans/Brits actually use — clearly separate
+   *casual English* from *business English*.
+3. THE NATIVE-SPEAKER TEST. For every sentence ask yourself: "Would a real person in the US/UK
+   actually say this?" If not, fix it.
+4. EXPLAIN THE NUANCE. Don't just say "this is wrong" — explain the connotation of the user's word
+   (too academic, archaic, comical in this context, etc.).
+5. COMPLETIONS & GRAMMAR. Automatically catch clipped endings (e.g. "if you don't clean" →
+   "if you don't clean up") and fix grammar.
+
+When the user just asks a question (not a sentence to grade), answer it directly in the same spirit.
+        """.trimIndent()
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

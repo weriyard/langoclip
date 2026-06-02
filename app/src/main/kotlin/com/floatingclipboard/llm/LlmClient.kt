@@ -21,7 +21,26 @@ interface LlmClient {
         jsonSchema: JsonElement? = null,
         onUsage: ((TokenUsage) -> Unit)? = null,
     ): Flow<String>
+
+    /**
+     * Multi-turn streaming chat. Full history is passed every call (the APIs are stateless). The
+     * default flattens the turns into a single labelled prompt and delegates to [stream] — fine for
+     * providers without a native chat endpoint. Providers that support multi-turn natively
+     * (Gemini, Anthropic) override this to preserve role structure.
+     */
+    fun streamChat(
+        systemPrompt: String,
+        turns: List<ChatTurn>,
+        onUsage: ((TokenUsage) -> Unit)? = null,
+    ): Flow<String> = stream(
+        systemPrompt = systemPrompt,
+        userPrompt = turns.joinToString("\n\n") { "${it.role}: ${it.content}" },
+        onUsage = onUsage,
+    )
 }
+
+/** Single turn in a multi-turn chat — role is "user" or "assistant". */
+data class ChatTurn(val role: String, val content: String)
 
 data class TokenUsage(val inputTokens: Int, val outputTokens: Int)
 

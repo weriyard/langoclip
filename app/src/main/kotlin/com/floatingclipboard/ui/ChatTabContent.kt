@@ -54,7 +54,11 @@ fun ChatTabContent(
             .fillMaxSize()
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        ChatContextHeader(word = tab.word, meaningEn = tab.meaningEn, meaningPl = tab.meaningPl)
+        if (tab.isTutor) {
+            ChatContextHeader(word = "Korepetytor angielskiego", meaningEn = "", meaningPl = "")
+        } else {
+            ChatContextHeader(word = tab.word, meaningEn = tab.meaningEn, meaningPl = tab.meaningPl)
+        }
 
         LazyColumn(
             state = listState,
@@ -96,7 +100,12 @@ fun ChatTabContent(
                 value = tab.input,
                 onValueChange = onInputChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Spytaj o coś związanego ze słowem…") },
+                placeholder = {
+                    Text(
+                        if (tab.isTutor) "Napisz zdanie albo zadaj pytanie…"
+                        else "Spytaj o coś związanego ze słowem…"
+                    )
+                },
                 enabled = !isStreaming,
                 maxLines = 4,
             )
