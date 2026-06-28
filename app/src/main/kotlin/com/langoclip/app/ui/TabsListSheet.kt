@@ -142,8 +142,8 @@ private fun TabsListItem(
                 is Tab.Examples -> if (tab.variant > 0)
                     stringResource(R.string.tab_subtitle_examples_variant, tab.variant + 1)
                 else stringResource(R.string.tab_subtitle_examples)
-                is Tab.WordTranslation -> "Tłumaczenie słowa"
-                is Tab.Chat -> if (tab.isTutor) "Korepetytor" else "Chat o słowie"
+                is Tab.WordTranslation -> stringResource(R.string.tabslist_subtitle_word_translation)
+                is Tab.Chat -> if (tab.isTutor) stringResource(R.string.tabslist_subtitle_tutor) else stringResource(R.string.tabslist_subtitle_chat)
             }
             Text(
                 text = subtitle,

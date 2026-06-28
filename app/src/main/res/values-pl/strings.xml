@@ -108,4 +108,86 @@
     <!-- Word senses section in Examples tab -->
     <string name="senses_section_title">Znaczenia i zastosowania</string>
     <string name="senses_loading">Wyszukuję znaczenia…</string>
+
+    <!-- SettingsScreen — extracted strings -->
+    <string name="action_cancel">Anuluj</string>
+    <string name="settings_reset_openrouter">Resetuj klucz OpenRouter</string>
+    <string name="settings_local_db_header">Lokalne bazy</string>
+    <string name="settings_local_db_desc">Sprawdza czy bundled assety SQLite się załadowały. en_lemmas normalizuje formy fleksyjne (running→run) dla cache lookupów. en_examples uzupełnia przykłady gdy dictionaryapi.dev ich nie ma.</string>
+    <string name="settings_db_status_missing">✗ brak</string>
+    <string name="settings_db_status_empty">✗ pusty (0)</string>
+    <string name="settings_db_status_ok">✓ %1$s wpisów</string>
+    <string name="settings_cache_header">Cache</string>
+    <string name="settings_cache_desc">Wyczyść cache tłumaczeń i odpowiedzi LLM. Następne zapytania zostaną wysłane na świeżo do modelu.</string>
+    <string name="settings_cache_clear_button">Wyczyść cache</string>
+    <string name="settings_cache_clear_dialog_title">Wyczyścić cache?</string>
+    <string name="settings_cache_clear_dialog_text">Usunie wszystkie zapamiętane tłumaczenia słów i odpowiedzi LLM. Operacja nieodwracalna.</string>
+    <string name="settings_cache_clear_confirm">Wyczyść</string>
+    <string name="settings_cache_cleared">Wyczyszczono %1$d wpisów</string>
+    <string name="settings_cache_empty">Cache był pusty</string>
+    <string name="settings_openrouter_model_header">Model OpenRouter</string>
+    <string name="settings_openrouter_free_only_title">Tylko darmowe modele</string>
+    <string name="settings_openrouter_free_only_desc">Aplikacja przełącza między darmowymi modelami :free; gdy jeden się wyczerpie próbuje następnego.</string>
+    <string name="settings_openrouter_paid_desc">Najtańszy płatny model (Gemini 2.5 Flash / Lite). Idzie z kredytów OpenRouter — bardzo tanio.</string>
+    <string name="settings_openrouter_trying">↻ Próbuję %1$s (%2$d/%3$d)</string>
+    <string name="settings_openrouter_ttft_title">Timeout pierwszego chunku</string>
+    <string name="settings_openrouter_ttft_desc">Jeśli model nie zacznie odpowiadać w X sekund, przechodzimy do następnego. (5–120 s)</string>
+    <string name="settings_legend_sources_header">Skróty źródeł (Przykłady)</string>
+    <string name="settings_legend_sources_desc">Obok ZNACZENIE i ZASTOSOWANIE pokazane są skróty informujące skąd pochodzi tekst EN i tłumaczenie PL.</string>
+    <string name="settings_legend_source_da">dictionaryapi.dev (słownik EN online)</string>
+    <string name="settings_legend_source_ka">kaikki / Wiktionary (lokalna baza w aplikacji)</string>
+    <string name="settings_legend_source_tr">tłumaczenie EN → PL (LLM aktywnego providera)</string>
+    <string name="settings_legend_source_gn">przykład wygenerowany (LLM — gdy słownik nie miał)</string>
+    <string name="settings_legend_source_none">brak danych / jeszcze nie pobrane</string>
+    <string name="settings_logcolor_header">Kolory logów</string>
+    <string name="settings_logcolor_desc">Pasek koloru po lewej każdej linii w logach grupuje wpisy po tagu — czyli po podsystemie który wygenerował log.</string>
+    <string name="settings_logcolor_llm">wywołania API (CALL/TTFT/DONE/TOKENS), parser JSON, cache hit/miss</string>
+    <string name="settings_logcolor_senses">rozkład znaczeń (dictionaryapi, kaikki HIT/MISS, per-sense translate)</string>
+    <string name="settings_logcolor_openrouter">fallback chain — próby kolejnych modeli z listy</string>
+    <string name="settings_logcolor_chat">rozmowa w Chat tab (multi-turn)</string>
+    <string name="settings_logcolor_lemma">en_lemmas DB lookup (np. running → run)</string>
+    <string name="settings_logcolor_tabs">operacje na zakładkach, otwarcia, anulowania</string>
+    <string name="settings_logcolor_warn_tag">ostrzeżenie</string>
+    <string name="settings_logcolor_warn">level=W — coś dziwnego, ale nieblokujące</string>
+    <string name="settings_logcolor_error_tag">błąd</string>
+    <string name="settings_logcolor_error">level=E — wywołanie padło, parse failed, etc.</string>
+
+    <!-- Extracted from code (i18n: English base + Polish localization) -->
+    <string name="chat_tutor_title">Korepetytor angielskiego</string>
+    <string name="chat_error">Błąd: %1$s</string>
+    <string name="chat_input_placeholder_tutor">Napisz zdanie albo zadaj pytanie…</string>
+    <string name="chat_input_placeholder_word">Spytaj o coś związanego ze słowem…</string>
+    <string name="chat_send">Wyślij</string>
+    <string name="explain_full_translation">Pełne tłumaczenie</string>
+    <string name="explain_select_fragment">Wybierz fragment do tłumaczenia</string>
+    <string name="paste_subtitle">Wklej angielski tekst lub zaznacz słowo żeby je przetłumaczyć.</string>
+    <string name="paste_input_placeholder">Wklej tutaj angielski tekst…\n\nApka rozbierze go na czynniki: konstrukcje czasowe, idiomy, znaczenia poszczególnych słów.</string>
+    <string name="paste_translate_word">Przetłumacz: \"%1$s\"  →</string>
+    <string name="paste_retry">Spróbuj ponownie</string>
+    <string name="examples_section_meaning">ZNACZENIE</string>
+    <string name="examples_section_usage">ZASTOSOWANIE</string>
+    <string name="examples_open_word_chat">Otwórz chat o tym słowie</string>
+    <string name="tabslist_subtitle_word_translation">Tłumaczenie słowa</string>
+    <string name="tabslist_subtitle_tutor">Korepetytor</string>
+    <string name="tabslist_subtitle_chat">Chat o słowie</string>
+    <string name="wordtab_translating">Tłumaczenie \"%1$s\"...</string>
+    <string name="wordtab_translation_label">Tłumaczenie</string>
+    <string name="wordtab_meanings">Znaczenia</string>
+    <string name="wordtab_examples">Przykłady</string>
+    <string name="wordtab_source_en">Źródło EN (dictionaryapi.dev)</string>
+    <string name="wordtab_more_examples">Więcej przykładów</string>
+    <string name="wordtab_source_local">model lokalny</string>
+    <string name="pos_noun">rzeczownik</string>
+    <string name="pos_verb">czasownik</string>
+    <string name="pos_adjective">przymiotnik</string>
+    <string name="pos_adverb">przysłówek</string>
+    <string name="pos_pronoun">zaimek</string>
+    <string name="pos_preposition">przyimek</string>
+    <string name="pos_idiom">idiom</string>
+    <string name="pos_phrasal_verb">phrasal verb</string>
+    <string name="pos_other">—</string>
+    <string name="notif_channel_name">Pływająca ikona</string>
+    <string name="notif_channel_desc">Notyfikacja niezbędna, aby ikona pozostała aktywna w tle</string>
+    <string name="notif_title">Pływająca ikona aktywna</string>
+    <string name="notif_text">Stuknij ikonę, aby otworzyć aplikację</string>
 </resources>

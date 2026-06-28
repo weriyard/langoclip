@@ -28,9 +28,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.langoclip.app.R
 import com.langoclip.app.chat.ChatMessage
 import com.langoclip.app.data.Tab
 
@@ -55,7 +57,7 @@ fun ChatTabContent(
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         if (tab.isTutor) {
-            ChatContextHeader(word = "Korepetytor angielskiego", meaningEn = "", meaningPl = "")
+            ChatContextHeader(word = stringResource(R.string.chat_tutor_title), meaningEn = "", meaningPl = "")
         } else {
             ChatContextHeader(word = tab.word, meaningEn = tab.meaningEn, meaningPl = tab.meaningPl)
         }
@@ -84,7 +86,7 @@ fun ChatTabContent(
 
         if (tab.error != null) {
             Text(
-                text = "Błąd: ${tab.error}",
+                text = stringResource(R.string.chat_error, tab.error),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(vertical = 4.dp),
@@ -102,8 +104,8 @@ fun ChatTabContent(
                 modifier = Modifier.weight(1f),
                 placeholder = {
                     Text(
-                        if (tab.isTutor) "Napisz zdanie albo zadaj pytanie…"
-                        else "Spytaj o coś związanego ze słowem…"
+                        if (tab.isTutor) stringResource(R.string.chat_input_placeholder_tutor)
+                        else stringResource(R.string.chat_input_placeholder_word)
                     )
                 },
                 enabled = !isStreaming,
@@ -118,7 +120,7 @@ fun ChatTabContent(
                 } else {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Wyślij",
+                        contentDescription = stringResource(R.string.chat_send),
                     )
                 }
             }

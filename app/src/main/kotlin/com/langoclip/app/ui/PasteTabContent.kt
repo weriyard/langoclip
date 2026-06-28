@@ -110,7 +110,7 @@ fun PasteTabContent(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "Wklej angielski tekst lub zaznacz słowo żeby je przetłumaczyć.",
+                text = stringResource(R.string.paste_subtitle),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -127,7 +127,7 @@ fun PasteTabContent(
             Box(modifier = Modifier.padding(14.dp)) {
                 if (tfValue.text.isEmpty()) {
                     Text(
-                        text = "Wklej tutaj angielski tekst…\n\nApka rozbierze go na czynniki: konstrukcje czasowe, idiomy, znaczenia poszczególnych słów.",
+                        text = stringResource(R.string.paste_input_placeholder),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.heightIn(min = 140.dp),
@@ -205,7 +205,7 @@ fun PasteTabContent(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
             ) {
                 Text(
-                    text = "Przetłumacz: \"$selectedWord\"  →",
+                    text = stringResource(R.string.paste_translate_word, selectedWord),
                     style = MaterialTheme.typography.titleSmall,
                 )
             }
@@ -294,7 +294,7 @@ private fun TranslatePanel(
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(state.message, color = MaterialTheme.colorScheme.onErrorContainer)
-                    TextButton(onClick = onRetry) { Text("Spróbuj ponownie") }
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.paste_retry)) }
                 }
             }
         }

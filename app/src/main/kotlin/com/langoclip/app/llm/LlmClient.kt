@@ -45,13 +45,13 @@ data class ChatTurn(val role: String, val content: String)
 data class TokenUsage(val inputTokens: Int, val outputTokens: Int)
 
 sealed class LlmError(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    data object MissingApiKey : LlmError("Brak klucza API — skonfiguruj w ustawieniach")
-    data object Unauthorized : LlmError("Nieprawidłowy klucz API")
-    data object RateLimited : LlmError("Limit zapytań przekroczony, spróbuj za chwilę")
-    data object EmptyResponse : LlmError("Model zwrócił pustą odpowiedź")
+    data object MissingApiKey : LlmError("No API key — configure it in settings")
+    data object Unauthorized : LlmError("Invalid API key")
+    data object RateLimited : LlmError("Rate limit exceeded, try again in a moment")
+    data object EmptyResponse : LlmError("The model returned an empty response")
     /** OpenRouter fallback chain walked the entire candidate list without one succeeding. */
-    data object AllCandidatesExhausted : LlmError("Wszystkie próbowane modele OpenRouter zwróciły błąd lub pustkę")
-    class Network(cause: Throwable) : LlmError("Brak połączenia z internetem", cause)
-    class Server(val code: Int, body: String) : LlmError("Błąd serwera $code: $body")
-    class Unknown(cause: Throwable) : LlmError(cause.message ?: "Nieznany błąd", cause)
+    data object AllCandidatesExhausted : LlmError("All attempted OpenRouter models returned an error or empty response")
+    class Network(cause: Throwable) : LlmError("No internet connection", cause)
+    class Server(val code: Int, body: String) : LlmError("Server error $code: $body")
+    class Unknown(cause: Throwable) : LlmError(cause.message ?: "Unknown error", cause)
 }

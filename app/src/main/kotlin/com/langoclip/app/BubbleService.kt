@@ -100,10 +100,10 @@ class BubbleService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Pływająca ikona",
+                getString(R.string.notif_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Notyfikacja niezbędna, aby ikona pozostała aktywna w tle"
+                description = getString(R.string.notif_channel_desc)
                 setShowBadge(false)
             }
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -118,8 +118,8 @@ class BubbleService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Pływająca ikona aktywna")
-            .setContentText("Stuknij ikonę, aby otworzyć aplikację")
+            .setContentTitle(getString(R.string.notif_title))
+            .setContentText(getString(R.string.notif_text))
             .setSmallIcon(R.drawable.ic_bubble)
             .setContentIntent(openIntent)
             .setOngoing(true)

@@ -351,7 +351,7 @@ fun SettingsScreen(
                 OutlinedButton(
                     onClick = { viewModel.resetOpenRouterApiKey() },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Resetuj klucz OpenRouter") }
+                ) { Text(stringResource(R.string.settings_reset_openrouter)) }
             }
 
             // === App language ===
@@ -449,9 +449,9 @@ fun SettingsScreen(
 
             // === Local DB diagnostics ===
             val dbStats by viewModel.localDbStats.collectAsStateWithLifecycle()
-            Text("Lokalne bazy", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_local_db_header), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Sprawdza czy bundled assety SQLite się załadowały. en_lemmas normalizuje formy fleksyjne (running→run) dla cache lookupów. en_examples uzupełnia przykłady gdy dictionaryapi.dev ich nie ma.",
+                stringResource(R.string.settings_local_db_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -459,36 +459,38 @@ fun SettingsScreen(
             LocalDbStatRow(label = "en_examples.db", count = dbStats.exampleCount)
 
             // === Cache ===
-            Text("Cache", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_cache_header), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Wyczyść cache tłumaczeń i odpowiedzi LLM. Następne zapytania zostaną wysłane na świeżo do modelu.",
+                stringResource(R.string.settings_cache_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             var clearConfirmOpen by remember { mutableStateOf(false) }
+            val cacheClearedFmt = stringResource(R.string.settings_cache_cleared)
+            val cacheEmptyMsg = stringResource(R.string.settings_cache_empty)
             OutlinedButton(
                 onClick = { clearConfirmOpen = true },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Wyczyść cache") }
+            ) { Text(stringResource(R.string.settings_cache_clear_button)) }
             if (clearConfirmOpen) {
                 AlertDialog(
                     onDismissRequest = { clearConfirmOpen = false },
-                    title = { Text("Wyczyścić cache?") },
-                    text = { Text("Usunie wszystkie zapamiętane tłumaczenia słów i odpowiedzi LLM. Operacja nieodwracalna.") },
+                    title = { Text(stringResource(R.string.settings_cache_clear_dialog_title)) },
+                    text = { Text(stringResource(R.string.settings_cache_clear_dialog_text)) },
                     confirmButton = {
                         TextButton(onClick = {
                             clearConfirmOpen = false
                             viewModel.clearCache { removed ->
                                 Toast.makeText(
                                     context,
-                                    if (removed > 0) "Wyczyszczono $removed wpisów" else "Cache był pusty",
+                                    if (removed > 0) String.format(cacheClearedFmt, removed) else cacheEmptyMsg,
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
-                        }) { Text("Wyczyść") }
+                        }) { Text(stringResource(R.string.settings_cache_clear_confirm)) }
                     },
                     dismissButton = {
-                        TextButton(onClick = { clearConfirmOpen = false }) { Text("Anuluj") }
+                        TextButton(onClick = { clearConfirmOpen = false }) { Text(stringResource(R.string.action_cancel)) }
                     },
                 )
             }
@@ -525,9 +527,9 @@ private fun LocalDbStatRow(label: String, count: Int?) {
             modifier = Modifier.weight(1f),
         )
         val (statusText, color) = when {
-            count == null -> "✗ brak" to MaterialTheme.colorScheme.error
-            count == 0 -> "✗ pusty (0)" to MaterialTheme.colorScheme.error
-            else -> "✓ ${"%,d".format(count)} wpisów" to MaterialTheme.colorScheme.primary
+            count == null -> stringResource(R.string.settings_db_status_missing) to MaterialTheme.colorScheme.error
+            count == 0 -> stringResource(R.string.settings_db_status_empty) to MaterialTheme.colorScheme.error
+            else -> stringResource(R.string.settings_db_status_ok, "%,d".format(count)) to MaterialTheme.colorScheme.primary
         }
         Text(
             text = statusText,
@@ -552,27 +554,28 @@ private fun OpenRouterModelSection(
 ) {
     val currentlyUsed by OpenRouterModelHint.current.collectAsStateWithLifecycle()
     val tryingNow by OpenRouterModelHint.trying.collectAsStateWithLifecycle()
-    SettingsSectionHeader("Model OpenRouter")
+    SettingsSectionHeader(stringResource(R.string.settings_openrouter_model_header))
     SettingsCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Tylko darmowe modele", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.settings_openrouter_free_only_title), style = MaterialTheme.typography.titleSmall)
                 Text(
                     if (onlyFree)
-                        "Aplikacja przełącza między darmowymi modelami :free; gdy jeden się wyczerpie próbuje następnego."
+                        stringResource(R.string.settings_openrouter_free_only_desc)
                     else
-                        "Najtańszy płatny model (Gemini 2.5 Flash / Lite). Idzie z kredytów OpenRouter — bardzo tanio.",
+                        stringResource(R.string.settings_openrouter_paid_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Switch(checked = onlyFree, onCheckedChange = onToggleOnlyFree)
         }
+        val tryingFmt = stringResource(R.string.settings_openrouter_trying)
         val statusText = when {
-            tryingNow != null -> "↻ Próbuję ${tryingNow!!.model} (${tryingNow!!.attempt}/${tryingNow!!.total})"
+            tryingNow != null -> String.format(tryingFmt, tryingNow!!.model, tryingNow!!.attempt, tryingNow!!.total)
             currentlyUsed != null -> currentlyUsed
             else -> null
         }
@@ -589,9 +592,9 @@ private fun OpenRouterModelSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Timeout pierwszego chunku", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.settings_openrouter_ttft_title), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Jeśli model nie zacznie odpowiadać w X sekund, przechodzimy do następnego. (5–120 s)",
+                    stringResource(R.string.settings_openrouter_ttft_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -684,19 +687,19 @@ private fun StatusPill(text: String, accentLive: Boolean) {
  */
 @Composable
 private fun SourceLegend() {
-    SettingsSectionHeader("Skróty źródeł (Przykłady)")
+    SettingsSectionHeader(stringResource(R.string.settings_legend_sources_header))
     SettingsCard {
         Text(
-            "Obok ZNACZENIE i ZASTOSOWANIE pokazane są skróty informujące skąd pochodzi tekst EN i tłumaczenie PL.",
+            stringResource(R.string.settings_legend_sources_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         val entries = listOf(
-            "DA" to "dictionaryapi.dev (słownik EN online)",
-            "KA" to "kaikki / Wiktionary (lokalna baza w aplikacji)",
-            "TR" to "tłumaczenie EN → PL (LLM aktywnego providera)",
-            "GN" to "przykład wygenerowany (LLM — gdy słownik nie miał)",
-            "—"  to "brak danych / jeszcze nie pobrane",
+            "DA" to stringResource(R.string.settings_legend_source_da),
+            "KA" to stringResource(R.string.settings_legend_source_ka),
+            "TR" to stringResource(R.string.settings_legend_source_tr),
+            "GN" to stringResource(R.string.settings_legend_source_gn),
+            "—"  to stringResource(R.string.settings_legend_source_none),
         )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             entries.forEach { (code, desc) ->
@@ -727,22 +730,22 @@ private fun SourceLegend() {
  */
 @Composable
 private fun LogColorLegend() {
-    SettingsSectionHeader("Kolory logów")
+    SettingsSectionHeader(stringResource(R.string.settings_logcolor_header))
     SettingsCard {
         Text(
-            "Pasek koloru po lewej każdej linii w logach grupuje wpisy po tagu — czyli po podsystemie który wygenerował log.",
+            stringResource(R.string.settings_logcolor_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         val entries = listOf(
-            Triple("LLM",          MaterialTheme.colorScheme.primary, "wywołania API (CALL/TTFT/DONE/TOKENS), parser JSON, cache hit/miss"),
-            Triple("Senses",       androidx.compose.ui.graphics.Color(0xFF2E7D32), "rozkład znaczeń (dictionaryapi, kaikki HIT/MISS, per-sense translate)"),
-            Triple("OpenRouter",   androidx.compose.ui.graphics.Color(0xFF7B4F9E), "fallback chain — próby kolejnych modeli z listy"),
-            Triple("Chat",         androidx.compose.ui.graphics.Color(0xFF1565C0), "rozmowa w Chat tab (multi-turn)"),
-            Triple("Lemma",        androidx.compose.ui.graphics.Color(0xFF00838F), "en_lemmas DB lookup (np. running → run)"),
-            Triple("TabsViewModel",androidx.compose.ui.graphics.Color(0xFF5D4037), "operacje na zakładkach, otwarcia, anulowania"),
-            Triple("ostrzeżenie",  androidx.compose.ui.graphics.Color(0xFFE69500), "level=W — coś dziwnego, ale nieblokujące"),
-            Triple("błąd",         MaterialTheme.colorScheme.error, "level=E — wywołanie padło, parse failed, etc."),
+            Triple("LLM",          MaterialTheme.colorScheme.primary, stringResource(R.string.settings_logcolor_llm)),
+            Triple("Senses",       androidx.compose.ui.graphics.Color(0xFF2E7D32), stringResource(R.string.settings_logcolor_senses)),
+            Triple("OpenRouter",   androidx.compose.ui.graphics.Color(0xFF7B4F9E), stringResource(R.string.settings_logcolor_openrouter)),
+            Triple("Chat",         androidx.compose.ui.graphics.Color(0xFF1565C0), stringResource(R.string.settings_logcolor_chat)),
+            Triple("Lemma",        androidx.compose.ui.graphics.Color(0xFF00838F), stringResource(R.string.settings_logcolor_lemma)),
+            Triple("TabsViewModel",androidx.compose.ui.graphics.Color(0xFF5D4037), stringResource(R.string.settings_logcolor_tabs)),
+            Triple(stringResource(R.string.settings_logcolor_warn_tag),  androidx.compose.ui.graphics.Color(0xFFE69500), stringResource(R.string.settings_logcolor_warn)),
+            Triple(stringResource(R.string.settings_logcolor_error_tag), MaterialTheme.colorScheme.error, stringResource(R.string.settings_logcolor_error)),
         )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             entries.forEach { (tag, color, desc) ->

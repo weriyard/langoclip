@@ -19,8 +19,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
+import com.langoclip.app.R
 import com.langoclip.app.data.Tab
 import com.langoclip.app.translation.TranslationResult
 import com.langoclip.app.translation.TranslationSource
@@ -45,7 +47,7 @@ fun WordTranslationTabContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    Text("Tłumaczenie \"${tab.token}\"...")
+                    Text(stringResource(R.string.wordtab_translating, tab.token))
                 }
             }
 
@@ -109,7 +111,7 @@ private fun WordTranslationResult(
     // Main translation
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Tłumaczenie", style = MaterialTheme.typography.labelMedium,
+            Text(stringResource(R.string.wordtab_translation_label), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             SelectionContainer {
                 Text(result.translation, style = MaterialTheme.typography.titleLarge)
@@ -120,7 +122,7 @@ private fun WordTranslationResult(
     // Definitions
     if (result.definitionsPl.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Znaczenia", style = MaterialTheme.typography.labelMedium,
+            Text(stringResource(R.string.wordtab_meanings), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             result.definitionsPl.forEachIndexed { i, def ->
                 SelectionContainer {
@@ -133,7 +135,7 @@ private fun WordTranslationResult(
     // Examples
     if (result.examplesPl.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Przykłady", style = MaterialTheme.typography.labelMedium,
+            Text(stringResource(R.string.wordtab_examples), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             result.examplesPl.forEach { ex ->
                 SelectionContainer {
@@ -150,7 +152,7 @@ private fun WordTranslationResult(
     if (result.definitionsEn.isNotEmpty() || result.examplesEn.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "Źródło EN (dictionaryapi.dev)",
+                stringResource(R.string.wordtab_source_en),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -174,14 +176,14 @@ private fun WordTranslationResult(
     // Actions
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         TextButton(onClick = { onShowExamples(result.baseForm.ifBlank { result.lemma }, result.translation) }) {
-            Text("Więcej przykładów")
+            Text(stringResource(R.string.wordtab_more_examples))
         }
     }
 
     // Source badge
     val sourceLabel = when (result.source) {
         TranslationSource.CACHE  -> "cache"
-        TranslationSource.LOCAL  -> "model lokalny"
+        TranslationSource.LOCAL  -> stringResource(R.string.wordtab_source_local)
         TranslationSource.HAIKU  -> "Claude Haiku"
         TranslationSource.SONNET -> "Claude Sonnet"
     }
