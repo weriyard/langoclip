@@ -59,7 +59,7 @@ class LlmCache private constructor(context: Context) {
         flushToDisk()
     }
 
-    /** Approximate size — number of cached entries. Useful for "wyczyść X wpisów" labels. */
+    /** Approximate size — number of cached entries. Useful for "clear X entries" labels. */
     suspend fun size(): Int = mutex.withLock { memory.size }
 
     private fun evictLruLocked() {

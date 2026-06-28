@@ -122,7 +122,7 @@ class ActionRunner(
             val full = builder.toString()
             if (full.isBlank()) {
                 logs.w(TAG, "EMPTY response from ${settings.provider.name}")
-                emit(ActionState.Error(action, "Pusta odpowiedź"))
+                emit(ActionState.Error(action, "Empty response"))
                 return@flow
             }
             parseAction(action, full).fold(
@@ -145,7 +145,7 @@ class ActionRunner(
             emit(ActionState.Error(action, messageFor(e, settings)))
         } catch (e: Throwable) {
             logs.e(TAG, "UNKNOWN_ERROR ${e::class.simpleName}: ${e.message}")
-            emit(ActionState.Error(action, e.message ?: "Nieznany błąd"))
+            emit(ActionState.Error(action, e.message ?: "Unknown error"))
         }
     }
 
@@ -213,7 +213,7 @@ class ActionRunner(
             logs.d(TAG, "DONE  examples ${System.currentTimeMillis() - startedAt}ms, $deltaCount deltas, ${builder.length} chars")
             val full = builder.toString()
             if (full.isBlank()) {
-                emit(com.langoclip.app.ui.ExamplesState.Error("Pusta odpowiedź"))
+                emit(com.langoclip.app.ui.ExamplesState.Error("Empty response"))
                 return@flow
             }
             parseExamples(phrase, full).fold(
@@ -235,7 +235,7 @@ class ActionRunner(
             emit(com.langoclip.app.ui.ExamplesState.Error(messageFor(e, settings)))
         } catch (e: Throwable) {
             logs.e(TAG, "UNKNOWN_ERROR examples: ${e.message}")
-            emit(com.langoclip.app.ui.ExamplesState.Error(e.message ?: "Nieznany błąd"))
+            emit(com.langoclip.app.ui.ExamplesState.Error(e.message ?: "Unknown error"))
         }
     }
 
@@ -346,7 +346,7 @@ class ActionRunner(
                 }
             }
             val full = builder.toString()
-            if (full.isBlank()) { emit(SensesState.Error("Pusta odpowiedź")); return@flow }
+            if (full.isBlank()) { emit(SensesState.Error("Empty response")); return@flow }
             parseSenses(full).fold(
                 onSuccess = { (baseForm, senses) ->
                     cache.put(key, full)
@@ -364,7 +364,7 @@ class ActionRunner(
             emit(SensesState.Error(messageFor(e, settings)))
         } catch (e: Throwable) {
             logs.e(TAG, "UNKNOWN_ERROR senses: ${e.message}")
-            emit(SensesState.Error(e.message ?: "Nieznany błąd"))
+            emit(SensesState.Error(e.message ?: "Unknown error"))
         }
     }
 
@@ -372,7 +372,7 @@ class ActionRunner(
         val cleaned = stripMarkdownWrap(rawText).trim()
         val root = json.parseToJsonElement(cleaned)
         val dto = json.decodeFromJsonElement(SensesResponseDto.serializer(), root)
-        if (dto.senses.isEmpty()) throw IllegalStateException("Senses: brak wyników")
+        if (dto.senses.isEmpty()) throw IllegalStateException("Senses: no results")
         Pair(dto.baseForm, dto.senses.map { it.toDomain() })
     }
 
@@ -382,7 +382,7 @@ class ActionRunner(
             Action.EXPLAIN_SENTENCE -> {
                 val items = parseBreakdownItems(rawText)
                     ?: throw IllegalStateException("Breakdown parsowanie nieudane")
-                if (items.isEmpty()) throw IllegalStateException("Breakdown bez itemów")
+                if (items.isEmpty()) throw IllegalStateException("Breakdown returned no items")
                 // Prefer proper JSON parse for fullTranslation; fall back to the streaming
                 // heuristic so partial-but-complete-enough responses still surface PL.
                 val fullTranslation = parseFullTranslation(rawText)
@@ -448,7 +448,7 @@ class ActionRunner(
     private fun parseExamples(phrase: String, rawText: String): Result<PhraseExamples> = runCatching {
         val examples = parseExamplesList(rawText)
             ?: throw IllegalStateException("Examples parsowanie nieudane")
-        if (examples.isEmpty()) throw IllegalStateException("Examples bez przykładów")
+        if (examples.isEmpty()) throw IllegalStateException("Examples returned no examples")
         PhraseExamples(phrase = phrase, examples = examples)
     }
 
@@ -641,22 +641,22 @@ Respond ONLY with this JSON object, nothing else:
      */
     private fun messageFor(error: LlmError, settings: Settings): String = when (error) {
         is LlmError.AllCandidatesExhausted -> buildString {
-            val tier = if (settings.onlyFreeOpenRouter) "darmowe" else "płatne"
-            append("Wszystkie próbowane $tier modele OpenRouter zwróciły błąd lub pustkę.")
+            val tier = if (settings.onlyFreeOpenRouter) "free" else "paid"
+            append("All attempted $tier OpenRouter models returned an error or empty response.")
             appendLine()
             appendLine()
-            appendLine("Co dalej:")
+            appendLine("What next:")
             if (settings.onlyFreeOpenRouter) {
-                appendLine("• Ustawienia → wyłącz \"Tylko darmowe modele\" — przełączy na płatny ")
-                appendLine("  DeepSeek V4 Flash (~\$0.10/M tokenów, twoje kredyty OpenRouter wystarczą na miesiące).")
+                appendLine("• Settings → turn off \"Free models only\" — switches to the paid ")
+                appendLine("  DeepSeek V4 Flash (~\$0.10/M tokens, your OpenRouter credits will last months).")
             }
             val geminiNote = if (settings.geminiApiKey.isNotBlank())
-                "klucz jest skonfigurowany"
+                "key is configured"
             else
-                "skonfiguruj klucz na aistudio.google.com/apikey"
-            appendLine("• Albo Ustawienia → Provider → Gemini ($geminiNote, 1500 req/dzień za darmo).")
+                "set up a key at aistudio.google.com/apikey"
+            appendLine("• Or Settings → Provider → Gemini ($geminiNote, 1500 req/day for free).")
         }
-        else -> error.message ?: "Nieznany błąd"
+        else -> error.message ?: "Unknown error"
     }
 
     private fun stripMarkdownWrap(raw: String): String {

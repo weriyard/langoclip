@@ -1,5 +1,5 @@
 ok  aja <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>LangoClip — design proposal</title>
@@ -610,40 +610,40 @@ ok  aja <!DOCTYPE html>
 </head>
 <body>
 
-<h1>LangoClip — propozycja redesignu</h1>
+<h1>LangoClip — redesign proposal</h1>
 <p class="intro">
-  Mockup pokazuje 3 kluczowe ekrany w wersji obecnej (po lewej) i proponowanej (po prawej). Zmiany:
-  warm-neutral paleta z brand accent (terracotta) zamiast Material You purple, konsystentne karty
-  z miękkimi rogami, lepszy podział hierarchii (Surface 1/2/3), drobne live-state pille.
+  This mockup shows 3 key screens in the current version (left) and the proposed version (right). Changes:
+  a warm-neutral palette with a brand accent (terracotta) instead of Material You purple, consistent cards
+  with soft corners, a clearer hierarchy split (Surface 1/2/3), and subtle live-state pills.
 </p>
 
 <!-- === ROW 1: SenseRow === -->
 <div class="row">
   <div>
     <div class="label">
-      <h2>SenseRow — Examples tab (1 sens)</h2>
-      <span class="tag before">Teraz</span>
+      <h2>SenseRow — Examples tab (1 sense)</h2>
+      <span class="tag before">Before</span>
     </div>
     <div class="phone before">
       <div class="b-senserow">
         <div>
-          <span class="b-pos-chip">PRZYMIOTNIK</span>
+          <span class="b-pos-chip">ADJECTIVE</span>
         </div>
         <div class="b-section-head">
-          <span class="b-section-title">ZNACZENIE</span>
+          <span class="b-section-title">MEANING</span>
           <span class="b-source">EN: DA · PL: HA</span>
         </div>
         <p class="b-text-en">Not constrained.</p>
-        <p class="b-text-pl">Nieograniczony.</p>
+        <p class="b-text-pl">Unconstrained.</p>
         <div class="b-section-head">
-          <span class="b-section-title">ZASTOSOWANIE</span>
+          <span class="b-section-title">USAGE</span>
           <span class="b-source">EN: KA · PL: HA</span>
         </div>
         <p class="b-text-en">"He was given free rein."</p>
-        <p class="b-text-pl">Dano mu wolną rękę.</p>
+        <p class="b-text-pl">He was given a free hand.</p>
         <hr class="b-divider">
         <div class="b-section-head">
-          <span class="b-pos-chip" style="background: rgba(76,175,80,0.15); color: var(--c-pos-verb);">CZASOWNIK</span>
+          <span class="b-pos-chip" style="background: rgba(76,175,80,0.15); color: var(--c-pos-verb);">VERB</span>
         </div>
         <p class="b-text-en">Release from captivity.</p>
       </div>
@@ -652,28 +652,28 @@ ok  aja <!DOCTYPE html>
 
   <div>
     <div class="label">
-      <h2>SenseRow — proponowany layout</h2>
-      <span class="tag after">Po</span>
+      <h2>SenseRow — proposed layout</h2>
+      <span class="tag after">After</span>
     </div>
     <div class="phone after">
       <div class="a-senserow">
-        <div class="a-pos-chip"><span class="dot"></span> przymiotnik</div>
+        <div class="a-pos-chip"><span class="dot"></span> adjective</div>
 
         <div class="a-section">
           <div class="a-section-head">
-            <span class="a-section-title">ZNACZENIE</span>
+            <span class="a-section-title">MEANING</span>
             <div class="a-source-chips">
               <span class="a-source-chip">DA</span>
               <span class="a-source-chip">HA</span>
             </div>
           </div>
           <p class="a-text-en">Not constrained.</p>
-          <p class="a-text-pl">Nieograniczony.</p>
+          <p class="a-text-pl">Unconstrained.</p>
         </div>
 
         <div class="a-section example">
           <div class="a-section-head">
-            <span class="a-section-title">ZASTOSOWANIE</span>
+            <span class="a-section-title">USAGE</span>
             <div style="display: flex; gap: 8px; align-items: center;">
               <div class="a-source-chips">
                 <span class="a-source-chip">KA</span>
@@ -683,15 +683,15 @@ ok  aja <!DOCTYPE html>
             </div>
           </div>
           <p class="a-text-en">"He was given free rein."</p>
-          <p class="a-text-pl">Dano mu wolną rękę.</p>
+          <p class="a-text-pl">He was given a free hand.</p>
         </div>
       </div>
 
       <div class="a-senserow">
-        <div class="a-pos-chip" style="background: rgba(76,175,80,0.12); color: #2e7d32;"><span class="dot" style="background: var(--c-pos-verb);"></span> czasownik</div>
+        <div class="a-pos-chip" style="background: rgba(76,175,80,0.12); color: #2e7d32;"><span class="dot" style="background: var(--c-pos-verb);"></span> verb</div>
         <div class="a-section">
           <div class="a-section-head">
-            <span class="a-section-title" style="color: #2e7d32;">ZNACZENIE</span>
+            <span class="a-section-title" style="color: #2e7d32;">MEANING</span>
             <div class="a-source-chips">
               <span class="a-source-chip">DA</span>
               <span class="a-source-chip">HA</span>
@@ -708,32 +708,32 @@ ok  aja <!DOCTYPE html>
 <div class="row">
   <div>
     <div class="label">
-      <h2>Top bar + sekcja Settings</h2>
-      <span class="tag before">Teraz</span>
+      <h2>Top bar + Settings section</h2>
+      <span class="tag before">Before</span>
     </div>
     <div class="phone before">
       <div class="b-appbar">
         <h3>LangoClip</h3>
         <div class="provider">OpenRouter (free) · ↻ qwen3-next-80b-a3b-instruct (2/7)</div>
       </div>
-      <h4 style="margin: 16px 0 4px; font-size: 14px;">Model OpenRouter</h4>
+      <h4 style="margin: 16px 0 4px; font-size: 14px;">OpenRouter model</h4>
       <div class="b-setting-row" style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div style="flex: 1;">
-          <h4>Tylko darmowe modele</h4>
-          <p>Aplikacja przełącza między darmowymi modelami :free; gdy jeden się wyczerpie próbuje następnego.</p>
+          <h4>Free models only</h4>
+          <p>The app switches between free :free models; when one runs out it tries the next.</p>
         </div>
         <span class="switch"></span>
       </div>
       <p style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--c-outline); margin-top: 8px;">
-        ↻ Próbuję: qwen/qwen3-next-80b-a3b-instruct:free (2/7)
+        ↻ Trying: qwen/qwen3-next-80b-a3b-instruct:free (2/7)
       </p>
     </div>
   </div>
 
   <div>
     <div class="label">
-      <h2>Top bar + Settings — propozycja</h2>
-      <span class="tag after">Po</span>
+      <h2>Top bar + Settings — proposal</h2>
+      <span class="tag after">After</span>
     </div>
     <div class="phone after">
       <div class="a-appbar">
@@ -747,14 +747,14 @@ ok  aja <!DOCTYPE html>
       <div class="a-setting-card">
         <div class="head">
           <div style="flex: 1;">
-            <h4>Tylko darmowe modele</h4>
-            <p>Aplikacja przełącza między <code>:free</code> kandydatami z fallback chain.</p>
+            <h4>Free models only</h4>
+            <p>The app switches between <code>:free</code> candidates from the fallback chain.</p>
           </div>
           <span class="switch"></span>
         </div>
         <div class="a-status-pill">
           <span class="live-dot"></span>
-          ↻ Próbuję qwen3-next-80b (2/7)
+          ↻ Trying qwen3-next-80b (2/7)
         </div>
       </div>
     </div>
@@ -765,37 +765,37 @@ ok  aja <!DOCTYPE html>
 <div class="row">
   <div>
     <div class="label">
-      <h2>Paste tab — pierwsze otwarcie (pusty)</h2>
-      <span class="tag before">Teraz</span>
+      <h2>Paste tab — first open (empty)</h2>
+      <span class="tag before">Before</span>
     </div>
     <div class="phone before">
-      <h3 class="b-paste-title">Wklej tekst</h3>
+      <h3 class="b-paste-title">Paste text</h3>
       <div class="b-textfield">
-        <span class="floating-label">Tekst</span>
-        <span class="ph">(puste pole tekstowe)</span>
+        <span class="floating-label">Text</span>
+        <span class="ph">(empty text field)</span>
       </div>
       <div class="b-btnrow">
-        <button class="b-btn">Tłumacz</button>
-        <button class="b-btn">Wyjaśnij</button>
+        <button class="b-btn">Translate</button>
+        <button class="b-btn">Explain</button>
       </div>
     </div>
   </div>
 
   <div>
     <div class="label">
-      <h2>Paste tab — pierwsze otwarcie, propozycja</h2>
-      <span class="tag after">Po</span>
+      <h2>Paste tab — first open, proposal</h2>
+      <span class="tag after">After</span>
     </div>
     <div class="phone after">
       <div class="a-paste-hero">
-        <h2>Wklej tekst</h2>
-        <p>Albo zaznacz słowo → przycisk po prawej. Wszystko w jednym tabie.</p>
+        <h2>Paste text</h2>
+        <p>Or select a word → button on the right. Everything in one tab.</p>
       </div>
       <div class="a-textcard">
-        <span class="ph">Wklej tutaj angielski tekst…<br/><br/>Apka rozbierze go na czynniki: konstrukcje czasowe, idiomy, znaczenia poszczególnych słów.</span>
+        <span class="ph">Paste English text here…<br/><br/>The app breaks it down into its parts: tense constructions, idioms, and the meanings of individual words.</span>
       </div>
       <div class="a-paste-hint">
-        Schowek wczyta się automatycznie · długie naciśnięcie <span class="kbd">⌘V</span> wkleja
+        The clipboard loads automatically · long-press <span class="kbd">⌘V</span> to paste
       </div>
     </div>
   </div>
@@ -805,43 +805,43 @@ ok  aja <!DOCTYPE html>
 <div class="row">
   <div>
     <div class="label">
-      <h2>Paste tab — z tłumaczeniem</h2>
-      <span class="tag before">Teraz</span>
+      <h2>Paste tab — with translation</h2>
+      <span class="tag before">Before</span>
     </div>
     <div class="phone before">
-      <h3 class="b-paste-title">Wklej tekst</h3>
+      <h3 class="b-paste-title">Paste text</h3>
       <div class="b-textfield" style="min-height: auto; padding: 14px 12px;">
-        <span class="floating-label">Tekst</span>
+        <span class="floating-label">Text</span>
         I have been waiting for the bus since morning.
       </div>
       <div class="b-btnrow">
-        <button class="b-btn">Tłumacz</button>
-        <button class="b-btn">Wyjaśnij</button>
+        <button class="b-btn">Translate</button>
+        <button class="b-btn">Explain</button>
         <button class="b-btn outline">"morning"</button>
       </div>
       <div class="b-result-card">
-        <p class="label">TŁUMACZENIE</p>
-        <p class="text">Czekam na autobus od rana.</p>
-        <button class="b-btn outline" style="padding: 4px 12px; font-size: 12px; margin-top: 8px;">Kopiuj</button>
+        <p class="label">TRANSLATION</p>
+        <p class="text">I've been waiting for the bus since morning.</p>
+        <button class="b-btn outline" style="padding: 4px 12px; font-size: 12px; margin-top: 8px;">Copy</button>
       </div>
     </div>
   </div>
 
   <div>
     <div class="label">
-      <h2>Paste tab — z tłumaczeniem, propozycja</h2>
-      <span class="tag after">Po</span>
+      <h2>Paste tab — with translation, proposal</h2>
+      <span class="tag after">After</span>
     </div>
     <div class="phone after">
       <div class="a-paste-hero">
-        <h2>Wklej tekst</h2>
+        <h2>Paste text</h2>
       </div>
       <div class="a-textcard">
         <span class="text-real">I have been waiting for the bus since morning.</span>
       </div>
       <div class="a-actionrow">
-        <button class="a-action-primary">Tłumacz</button>
-        <button class="a-action-secondary">Rozbij zdanie</button>
+        <button class="a-action-primary">Translate</button>
+        <button class="a-action-secondary">Break down sentence</button>
       </div>
       <div class="a-actionrow" style="margin-top: 6px;">
         <button class="a-action-word">"morning" →</button>
@@ -849,10 +849,10 @@ ok  aja <!DOCTYPE html>
 
       <div class="a-result-card">
         <div class="head">
-          <span class="label">TŁUMACZENIE</span>
-          <button class="copy-btn">📋 Kopiuj</button>
+          <span class="label">TRANSLATION</span>
+          <button class="copy-btn">📋 Copy</button>
         </div>
-        <p class="text">Czekam na autobus od rana.</p>
+        <p class="text">I've been waiting for the bus since morning.</p>
       </div>
     </div>
   </div>
@@ -862,8 +862,8 @@ ok  aja <!DOCTYPE html>
 <div class="row">
   <div>
     <div class="label">
-      <h2>Onboarding — krok 1 z 3</h2>
-      <span class="tag after">Koncepcja (nowe)</span>
+      <h2>Onboarding — step 1 of 3</h2>
+      <span class="tag after">Concept (new)</span>
     </div>
     <div class="o-screen">
       <div class="step-dots">
@@ -872,17 +872,17 @@ ok  aja <!DOCTYPE html>
         <div class="step-dot"></div>
       </div>
       <div class="illustration">💬</div>
-      <h2>Tłumacz po kliknięciu</h2>
-      <p>LangoClip rozkłada angielskie zdania na czynniki — czasy gramatyczne, idiomy, znaczenia słów. Wszystko w 5 sekund, z dyktafonowym streamingiem.</p>
-      <button class="o-cta">Dalej →</button>
-      <button class="o-skip">Pomiń</button>
+      <h2>Translate with one tap</h2>
+      <p>LangoClip breaks English sentences down into their parts — grammatical tenses, idioms, and word meanings. All in 5 seconds, with live streaming.</p>
+      <button class="o-cta">Next →</button>
+      <button class="o-skip">Skip</button>
     </div>
   </div>
 
   <div>
     <div class="label">
-      <h2>Onboarding — krok 2 z 3</h2>
-      <span class="tag after">Koncepcja (nowe)</span>
+      <h2>Onboarding — step 2 of 3</h2>
+      <span class="tag after">Concept (new)</span>
     </div>
     <div class="o-screen">
       <div class="step-dots">
@@ -891,27 +891,27 @@ ok  aja <!DOCTYPE html>
         <div class="step-dot"></div>
       </div>
       <div class="illustration">🔑</div>
-      <h2>Skonfiguruj AI</h2>
-      <p>OpenRouter daje darmowy dostęp do DeepSeek, Llama, Gemini i innych. Zarejestruj się na openrouter.ai (Google login, 30 sek) i wklej klucz.</p>
-      <button class="o-cta">Otwórz openrouter.ai/keys</button>
-      <button class="o-skip">Mam już klucz, wklej ręcznie</button>
+      <h2>Set up AI</h2>
+      <p>OpenRouter gives you free access to DeepSeek, Llama, Gemini and more. Sign up at openrouter.ai (Google login, 30 sec) and paste your key.</p>
+      <button class="o-cta">Open openrouter.ai/keys</button>
+      <button class="o-skip">I already have a key, paste manually</button>
     </div>
   </div>
 </div>
 
 <div class="summary">
-  <h2>Co się zmienia</h2>
+  <h2>What changes</h2>
   <ul>
-    <li><strong>Paleta:</strong> warm-neutral tło (<code>#FAF7F2</code>) + terracotta accent (<code>#B85C2A</code>) zamiast Material-You purple. Spójna brand-tożsamość, mniej "generycznego Androida".</li>
-    <li><strong>Surface hierarchy:</strong> 3 warstwy (background → card surface-1 → nested surface-2/3). Każdy "sens" / "ustawienie" siedzi w karcie z 16dp rogiem, sekcje wewnątrz w jaśniejszych boxach.</li>
-    <li><strong>Typografia:</strong> Inter z Google Fonts (display + body), JetBrains Mono dla skrótów źródeł. Wagi 500/600 zamiast bold-everywhere → cieńszy, nowocześniejszy feel.</li>
-    <li><strong>POS chip:</strong> mały kolorowy dot + lowercase nazwa zamiast SCREAMING UPPERCASE. Mniej krzyczy, bardziej czytelne.</li>
-    <li><strong>Source chips:</strong> pigułki obok siebie (<code>DA</code> <code>HA</code>) zamiast tekstowego <code>EN: DA · PL: HA</code>. Skanowalne wzrokiem w 100ms.</li>
-    <li><strong>Live-state pill:</strong> kropka + monospace tekst w karcie zamiast luźnej linijki pod sekcją. "Aktywne wydarzenie" — od razu widać.</li>
-    <li><strong>Chat icon:</strong> button zamiast surowej ikony w nagłówku — affordance widoczna, kontekst zachowany.</li>
+    <li><strong>Palette:</strong> warm-neutral background (<code>#FAF7F2</code>) + terracotta accent (<code>#B85C2A</code>) instead of Material-You purple. A coherent brand identity, less "generic Android".</li>
+    <li><strong>Surface hierarchy:</strong> 3 layers (background → card surface-1 → nested surface-2/3). Each "sense" / "setting" sits in a card with a 16dp corner, with inner sections in lighter boxes.</li>
+    <li><strong>Typography:</strong> Inter from Google Fonts (display + body), JetBrains Mono for source abbreviations. Weights 500/600 instead of bold-everywhere → a lighter, more modern feel.</li>
+    <li><strong>POS chip:</strong> a small colored dot + lowercase label instead of SCREAMING UPPERCASE. Less shouty, more readable.</li>
+    <li><strong>Source chips:</strong> pills side by side (<code>DA</code> <code>HA</code>) instead of the textual <code>EN: DA · PL: HA</code>. Visually scannable in 100ms.</li>
+    <li><strong>Live-state pill:</strong> a dot + monospace text inside the card instead of a loose line below the section. An "active event" — visible at a glance.</li>
+    <li><strong>Chat icon:</strong> a button instead of a raw icon in the header — the affordance is visible and the context is preserved.</li>
   </ul>
   <p style="margin-top: 16px;">
-    <strong>Implementacja w Compose:</strong> 1 plik <code>ui/theme/DesignSystem.kt</code> z paletą + typografią + shapes, ~80 linii. Refaktor <code>SenseRow</code> i <code>OpenRouterModelSection</code> żeby używały wspólnych <code>SectionCard</code> / <code>SourceChip</code> composable'ów, ~150 linii. Reszta ekranów ciągnie się za tym automatycznie bo bierze <code>MaterialTheme.colorScheme</code>.
+    <strong>Compose implementation:</strong> 1 file <code>ui/theme/DesignSystem.kt</code> with palette + typography + shapes, ~80 lines. Refactor <code>SenseRow</code> and <code>OpenRouterModelSection</code> to use shared <code>SectionCard</code> / <code>SourceChip</code> composables, ~150 lines. The rest of the screens follow automatically because they pull from <code>MaterialTheme.colorScheme</code>.
   </p>
 </div>
 

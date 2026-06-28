@@ -117,7 +117,7 @@ private fun SentenceHeaderCard(sourceText: String, fullTranslation: String?) {
                     color = MaterialTheme.colorScheme.outlineVariant,
                 )
                 Text(
-                    text = "Pełne tłumaczenie",
+                    text = stringResource(R.string.explain_full_translation),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -246,7 +246,7 @@ private fun BreakdownItemRow(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Text(
-                                text = "Wybierz fragment do tłumaczenia",
+                                text = stringResource(R.string.explain_select_fragment),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

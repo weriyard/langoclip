@@ -246,7 +246,7 @@ private fun SenseRow(sense: WordSense, onOpenChat: () -> Unit) {
             PosChip(label = sense.partOfSpeech.label, color = posColor)
 
             SectionBlock(
-                title = "ZNACZENIE",
+                title = stringResource(R.string.examples_section_meaning),
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 sourceChips = meaningSourceChips(sense),
                 primaryEn = sense.meaning,
@@ -256,7 +256,7 @@ private fun SenseRow(sense: WordSense, onOpenChat: () -> Unit) {
 
             if (sense.example.isNotBlank()) {
                 SectionBlock(
-                    title = "ZASTOSOWANIE",
+                    title = stringResource(R.string.examples_section_usage),
                     // Subtle accent tint so the example pair stands out from the meaning pair.
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                     sourceChips = exampleSourceChips(sense),
@@ -270,7 +270,7 @@ private fun SenseRow(sense: WordSense, onOpenChat: () -> Unit) {
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Chat,
-                                contentDescription = "Otwórz chat o tym słowie",
+                                contentDescription = stringResource(R.string.examples_open_word_chat),
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )

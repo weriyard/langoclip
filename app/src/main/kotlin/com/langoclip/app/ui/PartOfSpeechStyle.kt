@@ -2,6 +2,8 @@ package com.langoclip.app.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.langoclip.app.R
 import com.langoclip.app.actions.PartOfSpeech
 
 /**
@@ -22,14 +24,14 @@ fun colorForPartOfSpeech(pos: PartOfSpeech): Color = when (pos) {
 }
 
 val PartOfSpeech.label: String
-    get() = when (this) {
-        PartOfSpeech.NOUN -> "rzeczownik"
-        PartOfSpeech.VERB -> "czasownik"
-        PartOfSpeech.ADJECTIVE -> "przymiotnik"
-        PartOfSpeech.ADVERB -> "przysłówek"
-        PartOfSpeech.PRONOUN -> "zaimek"
-        PartOfSpeech.PREPOSITION -> "przyimek"
-        PartOfSpeech.IDIOM -> "idiom"
-        PartOfSpeech.PHRASAL_VERB -> "phrasal verb"
-        PartOfSpeech.OTHER -> "—"
+    @Composable get() = when (this) {
+        PartOfSpeech.NOUN -> stringResource(R.string.pos_noun)
+        PartOfSpeech.VERB -> stringResource(R.string.pos_verb)
+        PartOfSpeech.ADJECTIVE -> stringResource(R.string.pos_adjective)
+        PartOfSpeech.ADVERB -> stringResource(R.string.pos_adverb)
+        PartOfSpeech.PRONOUN -> stringResource(R.string.pos_pronoun)
+        PartOfSpeech.PREPOSITION -> stringResource(R.string.pos_preposition)
+        PartOfSpeech.IDIOM -> stringResource(R.string.pos_idiom)
+        PartOfSpeech.PHRASAL_VERB -> stringResource(R.string.pos_phrasal_verb)
+        PartOfSpeech.OTHER -> stringResource(R.string.pos_other)
     }

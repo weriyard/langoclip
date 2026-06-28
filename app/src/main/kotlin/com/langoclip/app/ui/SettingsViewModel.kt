@@ -54,7 +54,7 @@ class SettingsViewModel(
 
     /**
      * Wipes both response caches (LlmCache JSON file + Room translations table). Returns the
-     * combined count of removed entries so the UI can show "Wyczyszczono N wpisów".
+     * combined count of removed entries so the UI can show "Cleared N entries".
      */
     fun clearCache(onDone: (removed: Int) -> Unit) {
         viewModelScope.launch {
