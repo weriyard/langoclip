@@ -9,12 +9,12 @@
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".FloatingClipboardApp"
+        android:name=".LangoClipApp"
         android:allowBackup="true"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:theme="@style/Theme.FloatingClipboard"
+        android:theme="@style/Theme.LangoClip"
         android:supportsRtl="true"
         tools:targetApi="34">
 
@@ -22,7 +22,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.FloatingClipboard">
+            android:theme="@style/Theme.LangoClip">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

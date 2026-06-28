@@ -1,4 +1,4 @@
-# Floating Clipboard
+# LangoClip
 
 Android app z pływającą ikoną (chathead/bubble) zawsze na wierzchu. Po kliknięciu otwiera Activity z polem tekstowym, do którego automatycznie wklejana jest zawartość schowka.
 
@@ -12,7 +12,7 @@ Android app z pływającą ikoną (chathead/bubble) zawsze na wierzchu. Po klikn
 ```
 app/src/main/
 ├── AndroidManifest.xml
-├── kotlin/com/floatingclipboard/
+├── kotlin/com/langoclip/app/
 │   ├── MainActivity.kt          # UI + odczyt schowka w onResume
 │   ├── BubbleService.kt         # Foreground service trzymający bubble
 │   ├── BubbleTouchListener.kt   # Drag vs click
