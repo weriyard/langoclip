@@ -129,6 +129,18 @@ In Android Studio: opening the project root (where `settings.gradle.kts` lives) 
 
 ## Code conventions
 
+- **English only in code.** All source — comments, KDoc, identifiers, log messages, exception
+  messages, and the base string resources in `res/values/strings.xml` — must be written in English.
+  Polish appears in exactly two places:
+  1. **`res/values-pl/strings.xml`** — the Polish localization (every user-facing string lives in
+     resources; never hardcode user-facing text in Kotlin).
+  2. **Teaching content for the Polish learner** — the tutor / word-chat greetings and system
+     prompts in `TabsViewModel`, and the format-example inside the translation prompt
+     (`TranslationOrchestrator`). These stay Polish on purpose because the app teaches English to
+     Polish speakers. `assets/prompts/*.md` are tuned LLM content — leave them as-is.
+  Note: domain-layer error text (`LlmError`, `ActionRunner` failure messages) is currently English
+  in place — it isn't localized yet because those layers have no `Context`. Localizing them is a
+  known follow-up (map error type → resource at the UI layer, or plumb a `Context`).
 - Idiomatic Kotlin: `?.let`, `runCatching` instead of try/catch where the stack trace isn't needed.
 - Compose: state hoisting, screens as top-level `@Composable` functions in the Activity files, theme in `ui/theme/`.
 - KDoc for non-trivial classes; inline comments only where intent isn't obvious from the code.
