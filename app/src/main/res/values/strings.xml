@@ -13,6 +13,13 @@
     <string name="action_delete">Delete</string>
     <string name="action_retry">Try again</string>
     <string name="action_copy_result">Copy result</string>
+    <string name="action_open_saved">Saved phrases</string>
+
+    <!-- Saved phrases (notebook) -->
+    <string name="saved_title_count">Saved (%1$d)</string>
+    <string name="saved_empty">Nothing saved yet. Tap the bookmark on a meaning or word translation to add it here.</string>
+    <string name="saved_toast_done">Saved</string>
+    <string name="saved_toast_exists">Already saved</string>
 
     <!-- Paste tab -->
     <string name="paste_title">Clipboard content</string>

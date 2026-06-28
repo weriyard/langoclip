@@ -26,10 +26,14 @@ import com.langoclip.app.data.TabId
 import com.langoclip.app.data.TabsRepository
 import com.langoclip.app.data.example.ExampleDatabase
 import com.langoclip.app.data.lemma.LemmaDatabase
+import com.langoclip.app.data.saved.SavedExample
+import com.langoclip.app.data.saved.SavedPhraseRepository
 import com.langoclip.app.data.translation.TranslationDatabase
+import com.langoclip.app.actions.WordSense
 import com.langoclip.app.local.NoopLocalModelClient
 import com.langoclip.app.translation.Lemmatizer
 import com.langoclip.app.translation.TranslationOrchestrator
+import com.langoclip.app.translation.TranslationResult
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -48,6 +52,7 @@ class TabsViewModel(
     private val runner: ActionRunner,
     private val orchestrator: TranslationOrchestrator? = null,
     private val logStore: LogStore? = null,
+    private val savedRepo: SavedPhraseRepository? = null,
 ) : ViewModel() {
 
     val tabsList: StateFlow<List<Tab>> = tabs.tabs
@@ -210,6 +215,50 @@ class TabsViewModel(
             }
         }
         // Not stored in jobs — senses aren't cancelled on swipe-to-refresh
+    }
+
+    // === Saved phrases (notebook) ===
+
+    /**
+     * Saves one word sense (meaning + its single example pair) to the notebook. [onResult] reports
+     * whether a new row was actually written (false = blank or already saved), so the UI can show a
+     * "saved" / "already saved" toast.
+     */
+    fun saveSense(phrase: String, sense: WordSense, onResult: (Boolean) -> Unit = {}) {
+        val repo = savedRepo ?: return onResult(false)
+        viewModelScope.launch {
+            val saved = repo.save(
+                phraseEn = phrase,
+                phrasePl = sense.meaningTranslation,
+                partOfSpeech = sense.partOfSpeech.label,
+                note = sense.meaning,
+                examples = if (sense.example.isNotBlank()) {
+                    listOf(SavedExample(en = sense.example, pl = sense.exampleTranslation))
+                } else emptyList(),
+            )
+            onResult(saved)
+        }
+    }
+
+    /** Saves a single-word translation result (lemma + PL translation + EN/PL example pairs). */
+    fun saveWord(token: String, result: TranslationResult, onResult: (Boolean) -> Unit = {}) {
+        val repo = savedRepo ?: return onResult(false)
+        viewModelScope.launch {
+            // Zip EN/PL example lists positionally; fall back to whichever side exists.
+            val examples = result.examplesEn.mapIndexed { i, en ->
+                SavedExample(en = en, pl = result.examplesPl.getOrElse(i) { "" })
+            }.ifEmpty {
+                result.examplesPl.map { SavedExample(en = "", pl = it) }
+            }
+            val saved = repo.save(
+                phraseEn = result.baseForm.ifBlank { result.lemma.ifBlank { token } },
+                phrasePl = result.translation,
+                partOfSpeech = result.partOfSpeech,
+                note = result.definitionsPl.firstOrNull().orEmpty(),
+                examples = examples.filter { it.en.isNotBlank() },
+            )
+            onResult(saved)
+        }
     }
 
     // === Chat operations ===
@@ -401,6 +450,7 @@ Keep replies concise and concrete: bullet points and short paragraphs, not essay
                         logStore = LogStore.getInstance(app),
                     ),
                     logStore = LogStore.getInstance(app),
+                    savedRepo = SavedPhraseRepository.getInstance(app),
                 )
             }
         }

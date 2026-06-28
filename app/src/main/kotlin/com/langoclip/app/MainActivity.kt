@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,6 +46,7 @@ import com.langoclip.app.ui.ExamplesTabContent
 import com.langoclip.app.ui.ExplainTabContent
 import com.langoclip.app.ui.LogsScreen
 import com.langoclip.app.ui.PasteTabContent
+import com.langoclip.app.ui.SavedPhrasesScreen
 import com.langoclip.app.ui.SettingsScreen
 import com.langoclip.app.ui.TabBar
 import com.langoclip.app.ui.TabsListSheet
@@ -59,6 +61,7 @@ private sealed interface Overlay {
     data object None : Overlay
     data object Settings : Overlay
     data object Logs : Overlay
+    data object Saved : Overlay
 }
 
 class MainActivity : ComponentActivity() {
@@ -201,11 +204,16 @@ private fun AppRoot(
             BackHandler { overlay = Overlay.Settings }
             LogsScreen(onBack = { overlay = Overlay.Settings })
         }
+        Overlay.Saved -> {
+            BackHandler { overlay = Overlay.None }
+            SavedPhrasesScreen(onBack = { overlay = Overlay.None })
+        }
         Overlay.None -> TabbedShell(
             viewModel = viewModel,
             readClipboard = readClipboard,
             writeClipboard = writeClipboard,
             onOpenSettings = { overlay = Overlay.Settings },
+            onOpenSaved = { overlay = Overlay.Saved },
         )
     }
 }
@@ -217,12 +225,23 @@ private fun TabbedShell(
     readClipboard: () -> String,
     writeClipboard: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenSaved: () -> Unit,
 ) {
     val tabs by viewModel.tabsList.collectAsStateWithLifecycle()
     val selectedId by viewModel.selectedId.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val providerLabel by viewModel.providerLabel.collectAsStateWithLifecycle()
     var showTabsList by remember { mutableStateOf(false) }
+
+    // Toast feedback for "save to notebook" — shows whether the row was new or already present.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val savedMsg = stringResource(R.string.saved_toast_done)
+    val dupMsg = stringResource(R.string.saved_toast_exists)
+    fun toastSaved(saved: Boolean) {
+        android.widget.Toast.makeText(
+            context, if (saved) savedMsg else dupMsg, android.widget.Toast.LENGTH_SHORT,
+        ).show()
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -246,6 +265,12 @@ private fun TabbedShell(
                             Icon(
                                 Icons.AutoMirrored.Filled.Chat,
                                 contentDescription = stringResource(R.string.action_open_tutor_chat),
+                            )
+                        }
+                        IconButton(onClick = onOpenSaved) {
+                            Icon(
+                                Icons.Default.Bookmarks,
+                                contentDescription = stringResource(R.string.action_open_saved),
                             )
                         }
                         IconButton(onClick = { showTabsList = true }) {
@@ -298,10 +323,16 @@ private fun TabbedShell(
                     tab = t,
                     onRegenerate = { viewModel.regenerateExamples(t.id) },
                     onOpenChat = viewModel::openChatForWord,
+                    onSaveSense = { phrase, sense ->
+                        viewModel.saveSense(phrase, sense) { saved -> toastSaved(saved) }
+                    },
                 )
                 is DataTab.WordTranslation -> WordTranslationTabContent(
                     tab = t,
                     onShowExamples = viewModel::showExamplesAsNewTab,
+                    onSave = { token, result ->
+                        viewModel.saveWord(token, result) { saved -> toastSaved(saved) }
+                    },
                 )
                 is DataTab.Chat -> ChatTabContent(
                     tab = t,

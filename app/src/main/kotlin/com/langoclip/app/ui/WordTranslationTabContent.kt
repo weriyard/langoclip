@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +32,7 @@ import com.langoclip.app.translation.TranslationSource
 fun WordTranslationTabContent(
     tab: Tab.WordTranslation,
     onShowExamples: (phrase: String, translation: String) -> Unit,
+    onSave: (token: String, result: TranslationResult) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -61,6 +65,7 @@ fun WordTranslationTabContent(
                 token = tab.token,
                 result = s.result,
                 onShowExamples = onShowExamples,
+                onSave = { onSave(tab.token, s.result) },
             )
         }
     }
@@ -71,6 +76,7 @@ private fun WordTranslationResult(
     token: String,
     result: TranslationResult,
     onShowExamples: (String, String) -> Unit,
+    onSave: () -> Unit,
 ) {
     // Header: inflected form + lemma (if different)
     Row(
@@ -175,6 +181,14 @@ private fun WordTranslationResult(
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         TextButton(onClick = { onShowExamples(result.baseForm.ifBlank { result.lemma }, result.translation) }) {
             Text("Więcej przykładów")
+        }
+        TextButton(onClick = onSave) {
+            Icon(
+                imageVector = Icons.Outlined.BookmarkAdd,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text("  Zapisz")
         }
     }
 

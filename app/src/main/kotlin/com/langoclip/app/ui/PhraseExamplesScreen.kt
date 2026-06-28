@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -54,6 +55,7 @@ fun ExamplesTabContent(
     tab: Tab.Examples,
     onRegenerate: () -> Unit,
     onOpenChat: (word: String, meaningEn: String, meaningPl: String) -> Unit,
+    onSaveSense: (phrase: String, sense: WordSense) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pullState = rememberPullToRefreshState()
@@ -125,6 +127,7 @@ fun ExamplesTabContent(
                 onOpenChat = { meaningEn, meaningPl ->
                     onOpenChat(tab.phrase, meaningEn, meaningPl)
                 },
+                onSave = { sense -> onSaveSense(tab.phrase, sense) },
             )
             HorizontalDivider()
             Text(
@@ -179,6 +182,7 @@ fun ExamplesTabContent(
 private fun SensesSection(
     state: SensesState,
     onOpenChat: (meaningEn: String, meaningPl: String) -> Unit,
+    onSave: (WordSense) -> Unit,
 ) {
     when (state) {
         is SensesState.Idle -> Unit
@@ -196,7 +200,7 @@ private fun SensesSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (senses.isNotEmpty()) SensesList(senses, onOpenChat)
+                if (senses.isNotEmpty()) SensesList(senses, onOpenChat, onSave)
             }
         }
         is SensesState.Success -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -205,7 +209,7 @@ private fun SensesSection(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            SensesList(state.senses, onOpenChat)
+            SensesList(state.senses, onOpenChat, onSave)
         }
         is SensesState.Error -> Unit  // silent — senses are supplementary
     }
@@ -215,19 +219,21 @@ private fun SensesSection(
 private fun SensesList(
     senses: List<WordSense>,
     onOpenChat: (meaningEn: String, meaningPl: String) -> Unit,
+    onSave: (WordSense) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         senses.forEach { sense ->
             SenseRow(
                 sense = sense,
                 onOpenChat = { onOpenChat(sense.meaning, sense.meaningTranslation) },
+                onSave = { onSave(sense) },
             )
         }
     }
 }
 
 @Composable
-private fun SenseRow(sense: WordSense, onOpenChat: () -> Unit) {
+private fun SenseRow(sense: WordSense, onOpenChat: () -> Unit, onSave: () -> Unit) {
     val posColor = colorForPartOfSpeech(sense.partOfSpeech)
     androidx.compose.material3.Card(
         modifier = Modifier.fillMaxWidth(),
@@ -243,7 +249,18 @@ private fun SenseRow(sense: WordSense, onOpenChat: () -> Unit) {
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            PosChip(label = sense.partOfSpeech.label, color = posColor)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PosChip(label = sense.partOfSpeech.label, color = posColor)
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onSave, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.BookmarkAdd,
+                        contentDescription = "Zapisz do notatnika",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
 
             SectionBlock(
                 title = "ZNACZENIE",

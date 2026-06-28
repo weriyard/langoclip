@@ -12,6 +12,13 @@
     <string name="action_delete">Usuń</string>
     <string name="action_retry">Spróbuj ponownie</string>
     <string name="action_copy_result">Kopiuj wynik</string>
+    <string name="action_open_saved">Zapisane zwroty</string>
+
+    <!-- Saved phrases (notebook) -->
+    <string name="saved_title_count">Zapisane (%1$d)</string>
+    <string name="saved_empty">Nic jeszcze nie zapisano. Dotknij zakładki przy znaczeniu lub tłumaczeniu słowa, aby je tu dodać.</string>
+    <string name="saved_toast_done">Zapisano</string>
+    <string name="saved_toast_exists">Już zapisane</string>
 
     <!-- Paste tab -->
     <string name="paste_title">Treść ze schowka</string>
