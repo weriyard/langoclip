@@ -49,3 +49,7 @@ tools/*.db-shm
 tools/*.db-wal
 tools/*.jsonl
 tools/*.jsonl.gz
+
+# SQLite sidecary bazy asset (transient — commitujemy tylko sam .db)
+app/src/main/assets/*.db-shm
+app/src/main/assets/*.db-wal
