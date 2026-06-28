@@ -51,7 +51,7 @@ To tune sensitivity: bump the multiplier on `touchSlop` in the `ACTION_UP` branc
 ```
 app/src/main/
 ├── AndroidManifest.xml          # 4 permissions + service with <property>
-├── kotlin/com/floatingclipboard/
+├── kotlin/com/langoclip/app/
 │   ├── MainActivity.kt          # Compose UI, lifecycle observer for clipboard
 │   ├── BubbleService.kt         # FGS + WindowManager overlay
 │   ├── BubbleTouchListener.kt   # Drag/click detection
@@ -88,7 +88,7 @@ In Android Studio: opening the project root (where `settings.gradle.kts` lives) 
 - **Battery optimization**: even on stock Android the service can die after hours. Consider `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` if reliability is critical.
 
 ### Samsung One UI (target devices: S25 Ultra + Tab S10+)
-- **Sleeping apps / Deep sleeping apps**: One UI has its own sleep mechanism, more aggressive than stock Android. An app in "Deep sleep" won't even start a foreground service. Add Floating Clipboard to *Settings → Battery → Background usage limits → Never sleeping apps*.
+- **Sleeping apps / Deep sleeping apps**: One UI has its own sleep mechanism, more aggressive than stock Android. An app in "Deep sleep" won't even start a foreground service. Add LangoClip to *Settings → Battery → Background usage limits → Never sleeping apps*.
 - **DeX mode (Tab S10+)**: overlays behave differently — they may not float over DeX windows (different window manager). We don't use `TYPE_APPLICATION_OVERLAY` in a DeX-compatible way here. If DeX support becomes a requirement, test and add conditional logic via `Configuration.uiMode`.
 - **Game Booster**: blocks overlays per-game. User-side problem, not a code one — mention as a known limitation in README/onboarding.
 - **Edge Panels**: Samsung's own floating UI on the right edge. Doesn't conflict, but for snap-to-edge it's worth avoiding that zone or starting the bubble elsewhere.

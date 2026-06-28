@@ -29,11 +29,11 @@ val defaultAnthropicKey: String = envProps.getProperty("CLAUDE_API_KEY", "")
 val defaultOpenRouterKey: String = envProps.getProperty("OPENROUTER_API_KEY", "")
 
 android {
-    namespace = "com.floatingclipboard"
+    namespace = "com.langoclip.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.floatingclipboard"
+        applicationId = "com.langoclip.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
